@@ -29,6 +29,18 @@ void SetPlotStyle();
 void mySmallText(Double_t x, Double_t y, Color_t color, char *text);
 
 bool ComparePtTrack(Track_Parameters *a, Track_Parameters *b) { return a->pt > b->pt; }
+bool CompareZ0Track(Track_Parameters *a, Track_Parameters *b) { return a->z0 > b->z0; }
+bool CompareD0Track(Track_Parameters *a, Track_Parameters *b) { return a->d0 > b->d0; }
+
+Double_t deltaPhi(Double_t phi1, Double_t phi2)
+{
+   Double_t dPhi = phi1 - phi2;
+   if (dPhi > TMath::Pi())
+      dPhi -= 2. * TMath::Pi();
+   if (dPhi < -TMath::Pi())
+      dPhi += 2. * TMath::Pi();
+   return dPhi;
+}
 
 void displayProgress(long current, long max)
 {
@@ -84,31 +96,52 @@ void Analyzer_DisplacedMuon::Loop(TString type,
    typedef vector<Dim1> Dim2;
    typedef vector<Dim2> Dim3;
 
-   std::vector<TString> regions{"alltrk", "trkeq2", "trkgeq2", "trkgeq2os", "tpeq2", "tpgeq2", "tpgeq2osMu"};
-   std::vector<TString> vars{"trk_pt", "trk_eta", "trk_phi", "trk_z0", "trk_d0", "trk_rinv",
-                             "t1pt", "t1eta", "t1phi", "t1z0", "t1d0", "t1rinv",
-                             "t2pt", "t2eta", "t2phi", "t2z0", "t2d0", "t2rinv",
-                             "ntrk", "ntp",
-                             "tp1pt", "tp1eta", "tp1phi", "tp1z0", "tp1d0", "tp1rinv", "tp1pdgid",
-                             "tp2pt", "tp2eta", "tp2phi", "tp2z0", "tp2d0", "tp2rinv", "tp2pdgid"};
-   std::vector<int> nbins{50, 50, 50, 50, 50, 50,
-                          50, 50, 50, 50, 50, 50,
-                          50, 50, 50, 50, 50, 50,
-                          15, 15,
-                          50, 50, 50, 50, 50, 50, 350,
-                          50, 50, 50, 50, 50, 50, 350};
-   std::vector<float> lowEdge{0, -2.4, -4, -20, -10, -0.02,
-                              0, -2.4, -4, -20, -10, -0.02,
-                              0, -2.4, -4, -20, -10, -0.02,
-                              0, 0,
-                              0, -2.4, -4, -20, -10, -0.02, 0,
-                              0, -2.4, -4, -20, -10, -0.02, 0};
-   std::vector<float> highEdge{50, 2.4, 4, 20, 10, 0.02,
-                               50, 2.4, 4, 20, 10, 0.02,
-                               50, 2.4, 4, 20, 10, 0.02,
-                               15, 15,
-                               50, 2.4, 4, 20, 10, 0.02, 350,
-                               50, 2.4, 4, 20, 10, 0.02, 350};
+   std::vector<TString> regions{"tpgeq2", "tpgeq2osMu", "tpgeq2osMuzmin", "tpgeq2osMudmin"};
+   std::vector<TString> vars{"ntp",
+                             "tp_pt", "tp_eta", "tp_phi", "tp_z0", "tp_d0", "tp_charge", "tp_pdgid",
+                             "tp1pt", "tp1eta", "tp1phi", "tp1z0", "tp1d0", "tp1charge", "tp1pdgid",
+                             "tp2pt", "tp2eta", "tp2phi", "tp2z0", "tp2d0", "tp2charge", "tp2pdgid",
+                             "tp_tp_z0","tp_tp_d0","tp_tp_phi",
+                             "tpz1pt", "tpz1eta", "tpz1phi", "tpz1z0", "tpz1d0", "tpz1charge", "tpz1pdgid",
+                             "tpz2pt", "tpz2eta", "tpz2phi", "tpz2z0", "tpz2d0", "tpz2charge", "tpz2pdgid",
+                             "tpz_tpz_z0","tpz_tpz_d0","tpz_tpz_phi",
+                             "tpd1pt", "tpd1eta", "tpd1phi", "tpd1z0", "tpd1d0", "tpd1charge", "tpd1pdgid",
+                             "tpd2pt", "tpd2eta", "tpd2phi", "tpd2z0", "tpd2d0", "tpd2charge", "tpd2pdgid",
+                             "tpd_tpd_z0","tpd_tpd_d0","tpd_tpd_phi"
+                             };
+   std::vector<int> nbins{50,
+                          50, 50, 50, 50, 50, 50, 400,
+                          50, 50, 50, 50, 50, 50, 400,
+                          50, 50, 50, 50, 50, 50, 400,
+                          50, 50, 50,
+                          50, 50, 50, 50, 50, 50, 400,
+                          50, 50, 50, 50, 50, 50, 400,
+                          50, 50, 50,
+                          50, 50, 50, 50, 50, 50, 400,
+                          50, 50, 50, 50, 50, 50, 400,
+                          50, 50, 50};
+   std::vector<float> lowEdge{0,
+                              0, -2.4, -3.2, -20, -10, -2, 0,
+                              0, -2.4, -3.2, -20, -10, -2, 0,
+                              0, -2.4, -3.2, -20, -10, -2, 0,
+                              -20, -10, -4,
+                              0, -2.4, -3.2, -20, -10, -2, 0,
+                              0, -2.4, -3.2, -20, -10, -2, 0,
+                              -20, -10, -4,
+                              0, -2.4, -3.2, -20, -10, -2, 0,
+                              0, -2.4, -3.2, -20, -10, -2, 0,
+                              -20, -10, -4};
+   std::vector<float> highEdge{50,
+                               50, 2.4, 3.2, 20, 10, 2, 400,
+                               50, 2.4, 3.2, 20, 10, 2, 400,
+                               50, 2.4, 3.2, 20, 10, 2, 400,
+                               20, 10, 4,
+                               50, 2.4, 3.2, 20, 10, 2, 400,
+                               50, 2.4, 3.2, 20, 10, 2, 400,
+                               20, 10, 4,
+                               50, 2.4, 3.2, 20, 10, 2, 400,
+                               50, 2.4, 3.2, 20, 10, 2, 400,
+                               20, 10, 4};
 
    typedef vector<TH1F *> Dim1;
    typedef vector<Dim1> Dim2;
@@ -136,8 +169,16 @@ void Analyzer_DisplacedMuon::Loop(TString type,
    if (fChain == 0) return;
 
    int nAccept = 0;
-   std::vector<Track_Parameters *> *selectedTracks;
+   // std::vector<Track_Parameters *> *selectedTracks;
+   // std::vector<Track_Parameters *> *selectedTracks_zmin;
+   // std::vector<Track_Parameters *> *selectedTracks_dmin;
    std::vector<Track_Parameters *> *selectedTPs;
+   std::vector<Track_Parameters *> *selectedTPs_zmin;
+   std::vector<Track_Parameters *> *selectedTPs_dmin;
+   int Track_mind0_index = -1;
+   int Track_minz0_index = -1;
+   int TP_mind0_index = -1;
+   int TP_minz0_index = -1;
    Long64_t nevt = fChain->GetEntries();
 
    for (Long64_t i=0; i<nevt; i++) {
@@ -150,16 +191,27 @@ void Analyzer_DisplacedMuon::Loop(TString type,
       // track particle loop
 
       int ntrk = 0, ntp = 0;
-      selectedTracks = new std::vector<Track_Parameters *>();
+      int h_index;
+      // selectedTracks = new std::vector<Track_Parameters *>();
+      // selectedTracks_zmin = new std::vector<Track_Parameters *>();
+      // selectedTracks_dmin = new std::vector<Track_Parameters *>();
+
       selectedTPs = new std::vector<Track_Parameters *>();
+      selectedTPs_zmin = new std::vector<Track_Parameters *>();
+      selectedTPs_dmin = new std::vector<Track_Parameters *>();
+      /*
 
       for (int it = 0; it < (int)trk_pt->size(); it++)
       {
-         if (abs(trk_eta->at(it)) > TP_maxEta)
+         if (fabs(trk_eta->at(it)) > TP_maxEta)
             continue;
          if (trk_pt->at(it) < TP_minPt)
             continue;
          if (trk_pt->at(it) > TP_maxPt)
+            continue;
+         if (std::fabs(trk_d0->at(it)) > TP_maxD0)
+            continue;
+         if (std::fabs(trk_d0->at(it)) < TP_minD0)
             continue;
 
          // only look at tracks in (ttbar) jets ?
@@ -173,23 +225,25 @@ void Analyzer_DisplacedMuon::Loop(TString type,
                continue;
          }
          ntrk++;
-         selectedTracks->push_back(new Track_Parameters(trk_pt->at(it), trk_d0->at(it), trk_z0->at(it), trk_eta->at(it), trk_phi->at(it), trk_rinv->at(it), it, -99999));
+         selectedTracks->push_back(new Track_Parameters(trk_pt->at(it), trk_d0->at(it), trk_z0->at(it), trk_eta->at(it), trk_phi->at(it), -trk_rinv->at(it), it, -99999));
+         selectedTracks_zmin->push_back(new Track_Parameters(trk_pt->at(it), trk_d0->at(it), trk_z0->at(it), trk_eta->at(it), trk_phi->at(it), -trk_rinv->at(it), it, -99999));
+         selectedTracks_dmin->push_back(new Track_Parameters(trk_pt->at(it), trk_d0->at(it), trk_z0->at(it), trk_eta->at(it), trk_phi->at(it), -trk_rinv->at(it), it, -99999));
       }
-
+*/
       // ----------------------------------------------------------------------------------------------------------------
       // tracking particle loop
 
       for (int it = 0; it < (int)tp_pt->size(); it++)
       {
-         if (std::abs(tp_d0->at(it)) > TP_maxD0)
+         if (std::fabs(tp_d0->at(it)) > TP_maxD0)
             continue;
-         if (std::abs(tp_d0->at(it)) < TP_minD0)
+         if (std::fabs(tp_d0->at(it)) < TP_minD0)
             continue;
          if (tp_pt->at(it) < 0.2)
             continue;
          if (tp_pt->at(it) > TP_maxPt)
             continue;
-         if (std::abs(tp_eta->at(it)) > TP_maxEta)
+         if (std::fabs(tp_eta->at(it)) > TP_maxEta)
             continue;
 
          if (TP_select_injet > 0)
@@ -204,351 +258,383 @@ void Analyzer_DisplacedMuon::Loop(TString type,
          // cut on PDG ID at plot stage?
          if (TP_select_pdgid != 0)
          {
-            if (abs(tp_pdgid->at(it)) != abs(TP_select_pdgid))
+            if (fabs(tp_pdgid->at(it)) != fabs(TP_select_pdgid))
                continue;
          }
          ntp++;
-         selectedTPs->push_back(new Track_Parameters(tp_pt->at(it), tp_d0->at(it), tp_z0->at(it), tp_eta->at(it), tp_phi->at(it), matchtrk_rinv->at(it), it, tp_pdgid->at(it)));
+         selectedTPs->push_back(new Track_Parameters(tp_pt->at(it), tp_d0->at(it), tp_z0->at(it), tp_eta->at(it), tp_phi->at(it), tp_charge->at(it), it, tp_pdgid->at(it)));
+         selectedTPs_zmin->push_back(new Track_Parameters(tp_pt->at(it), tp_d0->at(it), tp_z0->at(it), tp_eta->at(it), tp_phi->at(it), tp_charge->at(it), it, tp_pdgid->at(it)));
+         selectedTPs_dmin->push_back(new Track_Parameters(tp_pt->at(it), tp_d0->at(it), tp_z0->at(it), tp_eta->at(it), tp_phi->at(it), tp_charge->at(it), it, tp_pdgid->at(it)));
       } // end tp loop
 
-      sort(selectedTracks->begin(),selectedTracks->end(),ComparePtTrack);
+      // sort(selectedTracks->begin(),selectedTracks->end(),ComparePtTrack);
       sort(selectedTPs->begin(), selectedTPs->end(), ComparePtTrack);
+      Track_minz0_index = -1;
+      Track_mind0_index = -1;
+/*
+      if (selectedTracks->size() >= 2)
+      {
+         float Track_minz0 = std::numeric_limits<float>::infinity();
+         float Track_mind0 = std::numeric_limits<float>::infinity();
+         sort(selectedTracks_zmin->begin(), selectedTracks_zmin->end(), CompareZ0Track);
+         sort(selectedTracks_dmin->begin(), selectedTracks_dmin->end(), CompareD0Track);
+         for (int j = 0; j < selectedTracks->size() - 1; j++)
+         {
+            if (fabs((*selectedTracks_zmin)[j+1]->z0 - (*selectedTracks_zmin)[j]->z0) < Track_minz0){
+               Track_minz0 = fabs((*selectedTracks_zmin)[j + 1]->z0 - (*selectedTracks_zmin)[j]->z0);
+               Track_minz0_index = j;
+            }
+            if (fabs((*selectedTracks_dmin)[j + 1]->d0 - (*selectedTracks_dmin)[j]->d0) < Track_mind0)
+            {
+               Track_mind0 = fabs((*selectedTracks_dmin)[j + 1]->d0 - (*selectedTracks_zmin)[j]->d0);
+               Track_mind0_index = j;
+            }
+         }
+      }
+*/
+      TP_minz0_index = -1;
+      TP_mind0_index = -1;
 
-      // ---------------------------------------------------------------------------------------------------------
-      //Filling up Histograms
-
-      // All tracks
-      for (int i = 0; i < ntrk; i++)
+      if (selectedTPs->size() >= 2)
       {
-         Hists[0][0]->Fill((*selectedTracks)[i]->pt);
-         Hists[0][1]->Fill((*selectedTracks)[i]->eta);
-         Hists[0][2]->Fill((*selectedTracks)[i]->phi);
-         Hists[0][3]->Fill((*selectedTracks)[i]->z0);
-         Hists[0][4]->Fill((*selectedTracks)[i]->d0);
-         Hists[0][5]->Fill((*selectedTracks)[i]->rinv);
-      }
-      if (ntrk > 0)
-      {
-         nAccept++;
-         Hists[0][6]->Fill((*selectedTracks)[0]->pt);
-         Hists[0][7]->Fill((*selectedTracks)[0]->eta);
-         Hists[0][8]->Fill((*selectedTracks)[0]->phi);
-         Hists[0][9]->Fill((*selectedTracks)[0]->z0);
-         Hists[0][10]->Fill((*selectedTracks)[0]->d0);
-         Hists[0][11]->Fill((*selectedTracks)[0]->rinv);
-      }
-      if (ntrk > 1)
-      {
-         Hists[0][12]->Fill((*selectedTracks)[1]->pt);
-         Hists[0][13]->Fill((*selectedTracks)[1]->eta);
-         Hists[0][14]->Fill((*selectedTracks)[1]->phi);
-         Hists[0][15]->Fill((*selectedTracks)[1]->z0);
-         Hists[0][16]->Fill((*selectedTracks)[1]->d0);
-         Hists[0][17]->Fill((*selectedTracks)[1]->rinv);
-      }
-      Hists[0][18]->Fill(ntrk);
-      Hists[0][19]->Fill(ntp);
-      if (ntp > 0)
-      {
-         Hists[0][20]->Fill((*selectedTPs)[0]->pt);
-         Hists[0][21]->Fill((*selectedTPs)[0]->eta);
-         Hists[0][22]->Fill((*selectedTPs)[0]->phi);
-         Hists[0][23]->Fill((*selectedTPs)[0]->z0);
-         Hists[0][24]->Fill((*selectedTPs)[0]->d0);
-         Hists[0][25]->Fill((*selectedTPs)[0]->rinv);
-         Hists[0][26]->Fill((*selectedTPs)[0]->pdgid);
-      }
-      if (ntp > 1)
-      {
-         Hists[0][27]->Fill((*selectedTPs)[1]->pt);
-         Hists[0][28]->Fill((*selectedTPs)[1]->eta);
-         Hists[0][29]->Fill((*selectedTPs)[1]->phi);
-         Hists[0][30]->Fill((*selectedTPs)[1]->z0);
-         Hists[0][31]->Fill((*selectedTPs)[1]->d0);
-         Hists[0][32]->Fill((*selectedTPs)[1]->rinv);
-         Hists[0][33]->Fill((*selectedTPs)[1]->pdgid);
+         float TP_minz0 = std::numeric_limits<float>::infinity();
+         float TP_mind0 = std::numeric_limits<float>::infinity();
+         sort(selectedTPs_zmin->begin(), selectedTPs_zmin->end(), CompareZ0Track);
+         sort(selectedTPs_dmin->begin(), selectedTPs_dmin->end(), CompareD0Track);
+         for (int j = 0; j < selectedTPs->size() - 1; j++)
+         {
+            if (fabs((*selectedTPs_zmin)[j + 1]->z0 - (*selectedTPs_zmin)[j]->z0) < TP_minz0)
+            {
+               TP_minz0 = fabs((*selectedTPs_zmin)[j + 1]->z0 - (*selectedTPs_zmin)[j]->z0);
+               TP_minz0_index = j;
+               if ((*selectedTPs_zmin)[j + 1]->pt > (*selectedTPs_zmin)[j]->pt)
+                  std::iter_swap((*selectedTPs_zmin)[j + 1], (*selectedTPs_zmin)[j]);
+            }
+            if (fabs((*selectedTPs_dmin)[j + 1]->d0 - (*selectedTPs_dmin)[j]->d0) < TP_mind0)
+            {
+               TP_mind0 = fabs((*selectedTPs_dmin)[j + 1]->d0 - (*selectedTPs_zmin)[j]->d0);
+               TP_mind0_index = j;
+               if ((*selectedTPs_dmin)[j + 1]->pt > (*selectedTPs_dmin)[j]->pt)
+                  std::iter_swap((*selectedTPs_dmin)[j + 1], (*selectedTPs_dmin)[j]);
+            }
+         }
       }
 
-      // Number of Tracks == 2
-      if (ntrk == 2)
+      if(ntp<2) continue;
+      // cout<<ntrk<<"\t"<<ntp<<endl;
+      nAccept++;
+         // ---------------------------------------------------------------------------------------------------------
+         //Filling up Histograms
+         
+         h_index=0;
+         Hists[0][h_index++]->Fill(ntp);
+         for (int i = 0; i < ntp; i++)
+         {
+            Hists[0][h_index]->Fill((*selectedTPs)[i]->pt);
+            Hists[0][h_index+1]->Fill((*selectedTPs)[i]->eta);
+            Hists[0][h_index+2]->Fill((*selectedTPs)[i]->phi);
+            Hists[0][h_index+3]->Fill((*selectedTPs)[i]->z0);
+            Hists[0][h_index+4]->Fill((*selectedTPs)[i]->d0);
+            Hists[0][h_index+5]->Fill((*selectedTPs)[i]->charge);
+            Hists[0][h_index+6]->Fill((*selectedTPs)[i]->pdgid);
+         }
+         h_index +=7;
+         Hists[0][h_index++]->Fill((*selectedTPs)[0]->pt);
+         Hists[0][h_index++]->Fill((*selectedTPs)[0]->eta);
+         Hists[0][h_index++]->Fill((*selectedTPs)[0]->phi);
+         Hists[0][h_index++]->Fill((*selectedTPs)[0]->z0);
+         Hists[0][h_index++]->Fill((*selectedTPs)[0]->d0);
+         Hists[0][h_index++]->Fill((*selectedTPs)[0]->charge);
+         Hists[0][h_index++]->Fill((*selectedTPs)[0]->pdgid);
+         Hists[0][h_index++]->Fill((*selectedTPs)[1]->pt);
+         Hists[0][h_index++]->Fill((*selectedTPs)[1]->eta);
+         Hists[0][h_index++]->Fill((*selectedTPs)[1]->phi);
+         Hists[0][h_index++]->Fill((*selectedTPs)[1]->z0);
+         Hists[0][h_index++]->Fill((*selectedTPs)[1]->d0);
+         Hists[0][h_index++]->Fill((*selectedTPs)[1]->charge);
+         Hists[0][h_index++]->Fill((*selectedTPs)[1]->pdgid);
+         Hists[0][h_index++]->Fill(((*selectedTPs)[0]->z0 - (*selectedTPs)[1]->z0));
+         Hists[0][h_index++]->Fill(((*selectedTPs)[0]->d0 - (*selectedTPs)[1]->d0));
+         Hists[0][h_index++]->Fill((deltaPhi((*selectedTPs)[0]->phi, (*selectedTPs)[1]->phi)));
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->pt);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->eta);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->phi);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->z0);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->d0);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->charge);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->pdgid);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->pt);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->eta);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->phi);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->z0);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->d0);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->charge);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->pdgid);
+         Hists[0][h_index++]->Fill(((*selectedTPs_zmin)[0]->z0 - (*selectedTPs_zmin)[1]->z0));
+         Hists[0][h_index++]->Fill(((*selectedTPs_zmin)[0]->d0 - (*selectedTPs_zmin)[1]->d0));
+         Hists[0][h_index++]->Fill((deltaPhi((*selectedTPs_zmin)[0]->phi, (*selectedTPs_zmin)[1]->phi)));
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[0]->pt);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[0]->eta);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[0]->phi);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[0]->z0);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[0]->d0);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[0]->charge);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[0]->pdgid);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[1]->pt);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[1]->eta);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[1]->phi);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[1]->z0);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[1]->d0);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[1]->charge);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[1]->pdgid);
+         Hists[0][h_index++]->Fill(((*selectedTPs_dmin)[0]->z0 - (*selectedTPs_dmin)[1]->z0));
+         Hists[0][h_index++]->Fill(((*selectedTPs_dmin)[0]->d0 - (*selectedTPs_dmin)[1]->d0));
+         Hists[0][h_index++]->Fill((deltaPhi((*selectedTPs_dmin)[0]->phi, (*selectedTPs_dmin)[1]->phi)));
+
+         // True Number of Tracks >= 2 and highest pt tracks are opposite sign muons
+         if (ntp >= 2 && ((*selectedTPs)[0]->charge * (*selectedTPs)[1]->charge < 0) && (abs((*selectedTPs)[0]->pdgid) == 13) && (abs((*selectedTPs)[1]->pdgid) == 13))
+         {
+            h_index = 0;
+            Hists[1][h_index++]->Fill(ntp);
+            for (int i = 0; i < ntp; i++)
+            {
+               Hists[1][h_index]->Fill((*selectedTPs)[i]->pt);
+               Hists[1][h_index + 1]->Fill((*selectedTPs)[i]->eta);
+               Hists[1][h_index + 2]->Fill((*selectedTPs)[i]->phi);
+               Hists[1][h_index + 3]->Fill((*selectedTPs)[i]->z0);
+               Hists[1][h_index + 4]->Fill((*selectedTPs)[i]->d0);
+               Hists[1][h_index + 5]->Fill((*selectedTPs)[i]->charge);
+               Hists[1][h_index + 6]->Fill((*selectedTPs)[i]->pdgid);
+            }
+            h_index += 7;
+            Hists[1][h_index++]->Fill((*selectedTPs)[0]->pt);
+            Hists[1][h_index++]->Fill((*selectedTPs)[0]->eta);
+            Hists[1][h_index++]->Fill((*selectedTPs)[0]->phi);
+            Hists[1][h_index++]->Fill((*selectedTPs)[0]->z0);
+            Hists[1][h_index++]->Fill((*selectedTPs)[0]->d0);
+            Hists[1][h_index++]->Fill((*selectedTPs)[0]->charge);
+            Hists[1][h_index++]->Fill((*selectedTPs)[0]->pdgid);
+            Hists[1][h_index++]->Fill((*selectedTPs)[1]->pt);
+            Hists[1][h_index++]->Fill((*selectedTPs)[1]->eta);
+            Hists[1][h_index++]->Fill((*selectedTPs)[1]->phi);
+            Hists[1][h_index++]->Fill((*selectedTPs)[1]->z0);
+            Hists[1][h_index++]->Fill((*selectedTPs)[1]->d0);
+            Hists[1][h_index++]->Fill((*selectedTPs)[1]->charge);
+            Hists[1][h_index++]->Fill((*selectedTPs)[1]->pdgid);
+            Hists[1][h_index++]->Fill(((*selectedTPs)[0]->z0 - (*selectedTPs)[1]->z0));
+            Hists[1][h_index++]->Fill(((*selectedTPs)[0]->d0 - (*selectedTPs)[1]->d0));
+            Hists[1][h_index++]->Fill((deltaPhi((*selectedTPs)[0]->phi, (*selectedTPs)[1]->phi)));
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->pt);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->eta);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->phi);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->z0);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->d0);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->charge);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->pdgid);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->pt);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->eta);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->phi);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->z0);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->d0);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->charge);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->pdgid);
+            Hists[1][h_index++]->Fill(((*selectedTPs_zmin)[0]->z0 - (*selectedTPs_zmin)[1]->z0));
+            Hists[1][h_index++]->Fill(((*selectedTPs_zmin)[0]->d0 - (*selectedTPs_zmin)[1]->d0));
+            Hists[1][h_index++]->Fill((deltaPhi((*selectedTPs_zmin)[0]->phi, (*selectedTPs_zmin)[1]->phi)));
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[0]->pt);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[0]->eta);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[0]->phi);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[0]->z0);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[0]->d0);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[0]->charge);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[0]->pdgid);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[1]->pt);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[1]->eta);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[1]->phi);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[1]->z0);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[1]->d0);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[1]->charge);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[1]->pdgid);
+            Hists[1][h_index++]->Fill(((*selectedTPs_dmin)[0]->z0 - (*selectedTPs_dmin)[1]->z0));
+            Hists[1][h_index++]->Fill(((*selectedTPs_dmin)[0]->d0 - (*selectedTPs_dmin)[1]->d0));
+            Hists[1][h_index++]->Fill((deltaPhi((*selectedTPs_dmin)[0]->phi, (*selectedTPs_dmin)[1]->phi)));
+         }
+
+      // True Number of Tracks >= 2 and minimum z0 tracks are opposite sign muons
+      if (ntp >= 2 && ((*selectedTPs_zmin)[0]->charge * (*selectedTPs_zmin)[1]->charge < 0) && (abs((*selectedTPs_zmin)[0]->pdgid) == 13) && (abs((*selectedTPs_zmin)[1]->pdgid) == 13))
       {
-         for (int i = 0; i < ntrk; i++)
+         h_index = 0;
+         Hists[2][h_index++]->Fill(ntp);
+         for (int i = 0; i < ntp; i++)
          {
-            Hists[1][0]->Fill((*selectedTracks)[i]->pt);
-            Hists[1][1]->Fill((*selectedTracks)[i]->eta);
-            Hists[1][2]->Fill((*selectedTracks)[i]->phi);
-            Hists[1][3]->Fill((*selectedTracks)[i]->z0);
-            Hists[1][4]->Fill((*selectedTracks)[i]->d0);
-            Hists[1][5]->Fill((*selectedTracks)[i]->rinv);
+            Hists[2][h_index]->Fill((*selectedTPs)[i]->pt);
+            Hists[2][h_index + 1]->Fill((*selectedTPs)[i]->eta);
+            Hists[2][h_index + 2]->Fill((*selectedTPs)[i]->phi);
+            Hists[2][h_index + 3]->Fill((*selectedTPs)[i]->z0);
+            Hists[2][h_index + 4]->Fill((*selectedTPs)[i]->d0);
+            Hists[2][h_index + 5]->Fill((*selectedTPs)[i]->charge);
+            Hists[2][h_index + 6]->Fill((*selectedTPs)[i]->pdgid);
          }
-         Hists[1][6]->Fill((*selectedTracks)[0]->pt);
-         Hists[1][7]->Fill((*selectedTracks)[0]->eta);
-         Hists[1][8]->Fill((*selectedTracks)[0]->phi);
-         Hists[1][9]->Fill((*selectedTracks)[0]->z0);
-         Hists[1][10]->Fill((*selectedTracks)[0]->d0);
-         Hists[1][11]->Fill((*selectedTracks)[0]->rinv);
-         Hists[1][12]->Fill((*selectedTracks)[1]->pt);
-         Hists[1][13]->Fill((*selectedTracks)[1]->eta);
-         Hists[1][14]->Fill((*selectedTracks)[1]->phi);
-         Hists[1][15]->Fill((*selectedTracks)[1]->z0);
-         Hists[1][16]->Fill((*selectedTracks)[1]->d0);
-         Hists[1][17]->Fill((*selectedTracks)[1]->rinv);
-         Hists[1][18]->Fill(ntrk);
-         Hists[1][19]->Fill(ntp);
-         if (ntp >= 2)
-         {
-            Hists[1][20]->Fill((*selectedTPs)[0]->pt);
-            Hists[1][21]->Fill((*selectedTPs)[0]->eta);
-            Hists[1][22]->Fill((*selectedTPs)[0]->phi);
-            Hists[1][23]->Fill((*selectedTPs)[0]->z0);
-            Hists[1][24]->Fill((*selectedTPs)[0]->d0);
-            Hists[1][25]->Fill((*selectedTPs)[0]->rinv);
-            Hists[1][26]->Fill((*selectedTPs)[0]->pdgid);
-            Hists[1][27]->Fill((*selectedTPs)[1]->pt);
-            Hists[1][28]->Fill((*selectedTPs)[1]->eta);
-            Hists[1][29]->Fill((*selectedTPs)[1]->phi);
-            Hists[1][30]->Fill((*selectedTPs)[1]->z0);
-            Hists[1][31]->Fill((*selectedTPs)[1]->d0);
-            Hists[1][32]->Fill((*selectedTPs)[1]->rinv);
-            Hists[1][33]->Fill((*selectedTPs)[1]->pdgid);
-         }
-      }
-      // Number of Tracks >= 2
-      if (ntrk >= 2)
-      {
-         for (int i = 0; i < ntrk; i++)
-         {
-            Hists[2][0]->Fill((*selectedTracks)[i]->pt);
-            Hists[2][1]->Fill((*selectedTracks)[i]->eta);
-            Hists[2][2]->Fill((*selectedTracks)[i]->phi);
-            Hists[2][3]->Fill((*selectedTracks)[i]->z0);
-            Hists[2][4]->Fill((*selectedTracks)[i]->d0);
-            Hists[2][5]->Fill((*selectedTracks)[i]->rinv);
-         }
-         Hists[2][6]->Fill((*selectedTracks)[0]->pt);
-         Hists[2][7]->Fill((*selectedTracks)[0]->eta);
-         Hists[2][8]->Fill((*selectedTracks)[0]->phi);
-         Hists[2][9]->Fill((*selectedTracks)[0]->z0);
-         Hists[2][10]->Fill((*selectedTracks)[0]->d0);
-         Hists[2][11]->Fill((*selectedTracks)[0]->rinv);
-         Hists[2][12]->Fill((*selectedTracks)[1]->pt);
-         Hists[2][13]->Fill((*selectedTracks)[1]->eta);
-         Hists[2][14]->Fill((*selectedTracks)[1]->phi);
-         Hists[2][15]->Fill((*selectedTracks)[1]->z0);
-         Hists[2][16]->Fill((*selectedTracks)[1]->d0);
-         Hists[2][17]->Fill((*selectedTracks)[1]->rinv);
-         Hists[2][18]->Fill(ntrk);
-         Hists[2][19]->Fill(ntp);
-         if (ntp > 0)
-         {
-            Hists[2][20]->Fill((*selectedTPs)[0]->pt);
-            Hists[2][21]->Fill((*selectedTPs)[0]->eta);
-            Hists[2][22]->Fill((*selectedTPs)[0]->phi);
-            Hists[2][23]->Fill((*selectedTPs)[0]->z0);
-            Hists[2][24]->Fill((*selectedTPs)[0]->d0);
-            Hists[2][25]->Fill((*selectedTPs)[0]->rinv);
-            Hists[2][26]->Fill((*selectedTPs)[0]->pdgid);
-         }
-         if (ntp > 1)
-         {
-            Hists[2][27]->Fill((*selectedTPs)[1]->pt);
-            Hists[2][28]->Fill((*selectedTPs)[1]->eta);
-            Hists[2][29]->Fill((*selectedTPs)[1]->phi);
-            Hists[2][30]->Fill((*selectedTPs)[1]->z0);
-            Hists[2][31]->Fill((*selectedTPs)[1]->d0);
-            Hists[2][32]->Fill((*selectedTPs)[1]->rinv);
-            Hists[2][33]->Fill((*selectedTPs)[1]->pdgid);
-         }
-      }
-      // Number of Tracks >= 2 and opposite sign highest pt tracks
-      if (ntrk >= 2 && ((*selectedTracks)[0]->rinv * (*selectedTracks)[1]->rinv < 0))
-      {
-         for (int i = 0; i < ntrk; i++)
-         {
-            Hists[3][0]->Fill((*selectedTracks)[i]->pt);
-            Hists[3][1]->Fill((*selectedTracks)[i]->eta);
-            Hists[3][2]->Fill((*selectedTracks)[i]->phi);
-            Hists[3][3]->Fill((*selectedTracks)[i]->z0);
-            Hists[3][4]->Fill((*selectedTracks)[i]->d0);
-            Hists[3][5]->Fill((*selectedTracks)[i]->rinv);
-         }
-         Hists[3][6]->Fill((*selectedTracks)[0]->pt);
-         Hists[3][7]->Fill((*selectedTracks)[0]->eta);
-         Hists[3][8]->Fill((*selectedTracks)[0]->phi);
-         Hists[3][9]->Fill((*selectedTracks)[0]->z0);
-         Hists[3][10]->Fill((*selectedTracks)[0]->d0);
-         Hists[3][11]->Fill((*selectedTracks)[0]->rinv);
-         Hists[3][12]->Fill((*selectedTracks)[1]->pt);
-         Hists[3][13]->Fill((*selectedTracks)[1]->eta);
-         Hists[3][14]->Fill((*selectedTracks)[1]->phi);
-         Hists[3][15]->Fill((*selectedTracks)[1]->z0);
-         Hists[3][16]->Fill((*selectedTracks)[1]->d0);
-         Hists[3][17]->Fill((*selectedTracks)[1]->rinv);
-         Hists[3][18]->Fill(ntrk);
-         Hists[3][19]->Fill(ntp);
-         if (ntp > 0)
-         {
-            Hists[3][20]->Fill((*selectedTPs)[0]->pt);
-            Hists[3][21]->Fill((*selectedTPs)[0]->eta);
-            Hists[3][22]->Fill((*selectedTPs)[0]->phi);
-            Hists[3][23]->Fill((*selectedTPs)[0]->z0);
-            Hists[3][24]->Fill((*selectedTPs)[0]->d0);
-            Hists[3][25]->Fill((*selectedTPs)[0]->rinv);
-            Hists[3][26]->Fill((*selectedTPs)[0]->pdgid);
-         }
-         if (ntp > 1)
-         {
-            Hists[3][27]->Fill((*selectedTPs)[1]->pt);
-            Hists[3][28]->Fill((*selectedTPs)[1]->eta);
-            Hists[3][29]->Fill((*selectedTPs)[1]->phi);
-            Hists[3][30]->Fill((*selectedTPs)[1]->z0);
-            Hists[3][31]->Fill((*selectedTPs)[1]->d0);
-            Hists[3][32]->Fill((*selectedTPs)[1]->rinv);
-            Hists[3][33]->Fill((*selectedTPs)[1]->pdgid);
-         }
-      }
-      // True Number of Tracks = 2
-      if (ntp == 2 && ntrk >= 2)
-      {
-         for (int i = 0; i < ntrk; i++)
-         {
-            Hists[4][0]->Fill((*selectedTracks)[i]->pt);
-            Hists[4][1]->Fill((*selectedTracks)[i]->eta);
-            Hists[4][2]->Fill((*selectedTracks)[i]->phi);
-            Hists[4][3]->Fill((*selectedTracks)[i]->z0);
-            Hists[4][4]->Fill((*selectedTracks)[i]->d0);
-            Hists[4][5]->Fill((*selectedTracks)[i]->rinv);
-         }
-         Hists[4][6]->Fill((*selectedTracks)[0]->pt);
-         Hists[4][7]->Fill((*selectedTracks)[0]->eta);
-         Hists[4][8]->Fill((*selectedTracks)[0]->phi);
-         Hists[4][9]->Fill((*selectedTracks)[0]->z0);
-         Hists[4][10]->Fill((*selectedTracks)[0]->d0);
-         Hists[4][11]->Fill((*selectedTracks)[0]->rinv);
-         Hists[4][12]->Fill((*selectedTracks)[1]->pt);
-         Hists[4][13]->Fill((*selectedTracks)[1]->eta);
-         Hists[4][14]->Fill((*selectedTracks)[1]->phi);
-         Hists[4][15]->Fill((*selectedTracks)[1]->z0);
-         Hists[4][16]->Fill((*selectedTracks)[1]->d0);
-         Hists[4][17]->Fill((*selectedTracks)[1]->rinv);
-         Hists[4][18]->Fill(ntrk);
-         Hists[4][19]->Fill(ntp);
-         Hists[4][20]->Fill((*selectedTPs)[0]->pt);
-         Hists[4][21]->Fill((*selectedTPs)[0]->eta);
-         Hists[4][22]->Fill((*selectedTPs)[0]->phi);
-         Hists[4][23]->Fill((*selectedTPs)[0]->z0);
-         Hists[4][24]->Fill((*selectedTPs)[0]->d0);
-         Hists[4][25]->Fill((*selectedTPs)[0]->rinv);
-         Hists[4][26]->Fill((*selectedTPs)[0]->pdgid);
-         Hists[4][27]->Fill((*selectedTPs)[1]->pt);
-         Hists[4][28]->Fill((*selectedTPs)[1]->eta);
-         Hists[4][29]->Fill((*selectedTPs)[1]->phi);
-         Hists[4][30]->Fill((*selectedTPs)[1]->z0);
-         Hists[4][31]->Fill((*selectedTPs)[1]->d0);
-         Hists[4][32]->Fill((*selectedTPs)[1]->rinv);
-         Hists[4][33]->Fill((*selectedTPs)[1]->pdgid);
-      }
-      // True Number of Tracks >= 2
-      if (ntp >= 2 && ntrk >= 2)
-      {
-         for (int i = 0; i < ntrk; i++)
-         {
-            Hists[5][0]->Fill((*selectedTracks)[i]->pt);
-            Hists[5][1]->Fill((*selectedTracks)[i]->eta);
-            Hists[5][2]->Fill((*selectedTracks)[i]->phi);
-            Hists[5][3]->Fill((*selectedTracks)[i]->z0);
-            Hists[5][4]->Fill((*selectedTracks)[i]->d0);
-            Hists[5][5]->Fill((*selectedTracks)[i]->rinv);
-         }
-         Hists[5][6]->Fill((*selectedTracks)[0]->pt);
-         Hists[5][7]->Fill((*selectedTracks)[0]->eta);
-         Hists[5][8]->Fill((*selectedTracks)[0]->phi);
-         Hists[5][9]->Fill((*selectedTracks)[0]->z0);
-         Hists[5][10]->Fill((*selectedTracks)[0]->d0);
-         Hists[5][11]->Fill((*selectedTracks)[0]->rinv);
-         Hists[5][12]->Fill((*selectedTracks)[1]->pt);
-         Hists[5][13]->Fill((*selectedTracks)[1]->eta);
-         Hists[5][14]->Fill((*selectedTracks)[1]->phi);
-         Hists[5][15]->Fill((*selectedTracks)[1]->z0);
-         Hists[5][16]->Fill((*selectedTracks)[1]->d0);
-         Hists[5][17]->Fill((*selectedTracks)[1]->rinv);
-         Hists[5][18]->Fill(ntrk);
-         Hists[5][19]->Fill(ntp);
-         Hists[5][20]->Fill((*selectedTPs)[0]->pt);
-         Hists[5][21]->Fill((*selectedTPs)[0]->eta);
-         Hists[5][22]->Fill((*selectedTPs)[0]->phi);
-         Hists[5][23]->Fill((*selectedTPs)[0]->z0);
-         Hists[5][24]->Fill((*selectedTPs)[0]->d0);
-         Hists[5][25]->Fill((*selectedTPs)[0]->rinv);
-         Hists[5][26]->Fill((*selectedTPs)[0]->pdgid);
-         Hists[5][27]->Fill((*selectedTPs)[1]->pt);
-         Hists[5][28]->Fill((*selectedTPs)[1]->eta);
-         Hists[5][29]->Fill((*selectedTPs)[1]->phi);
-         Hists[5][30]->Fill((*selectedTPs)[1]->z0);
-         Hists[5][31]->Fill((*selectedTPs)[1]->d0);
-         Hists[5][32]->Fill((*selectedTPs)[1]->rinv);
-         Hists[5][33]->Fill((*selectedTPs)[1]->pdgid);
-      }
-      // True Number of Tracks >= 2 and highest pt tracks are opposite sign muons
-      if (ntrk >= 2 && ntp >= 2 && ((*selectedTPs)[0]->rinv * (*selectedTPs)[1]->rinv < 0) && (abs((*selectedTPs)[0]->pdgid) == 13) && (abs((*selectedTPs)[1]->pdgid) == 13))
-      {
-         for (int i = 0; i < ntrk; i++)
-         {
-            Hists[6][0]->Fill((*selectedTracks)[i]->pt);
-            Hists[6][1]->Fill((*selectedTracks)[i]->eta);
-            Hists[6][2]->Fill((*selectedTracks)[i]->phi);
-            Hists[6][3]->Fill((*selectedTracks)[i]->z0);
-            Hists[6][4]->Fill((*selectedTracks)[i]->d0);
-            Hists[6][5]->Fill((*selectedTracks)[i]->rinv);
-         }
-         Hists[6][6]->Fill((*selectedTracks)[0]->pt);
-         Hists[6][7]->Fill((*selectedTracks)[0]->eta);
-         Hists[6][8]->Fill((*selectedTracks)[0]->phi);
-         Hists[6][9]->Fill((*selectedTracks)[0]->z0);
-         Hists[6][10]->Fill((*selectedTracks)[0]->d0);
-         Hists[6][11]->Fill((*selectedTracks)[0]->rinv);
-         Hists[6][12]->Fill((*selectedTracks)[1]->pt);
-         Hists[6][13]->Fill((*selectedTracks)[1]->eta);
-         Hists[6][14]->Fill((*selectedTracks)[1]->phi);
-         Hists[6][15]->Fill((*selectedTracks)[1]->z0);
-         Hists[6][16]->Fill((*selectedTracks)[1]->d0);
-         Hists[6][17]->Fill((*selectedTracks)[1]->rinv);
-         Hists[6][18]->Fill(ntrk);
-         Hists[6][19]->Fill(ntp);
-         Hists[6][20]->Fill((*selectedTPs)[0]->pt);
-         Hists[6][21]->Fill((*selectedTPs)[0]->eta);
-         Hists[6][22]->Fill((*selectedTPs)[0]->phi);
-         Hists[6][23]->Fill((*selectedTPs)[0]->z0);
-         Hists[6][24]->Fill((*selectedTPs)[0]->d0);
-         Hists[6][25]->Fill((*selectedTPs)[0]->rinv);
-         Hists[6][26]->Fill((*selectedTPs)[0]->pdgid);
-         Hists[6][27]->Fill((*selectedTPs)[1]->pt);
-         Hists[6][28]->Fill((*selectedTPs)[1]->eta);
-         Hists[6][29]->Fill((*selectedTPs)[1]->phi);
-         Hists[6][30]->Fill((*selectedTPs)[1]->z0);
-         Hists[6][31]->Fill((*selectedTPs)[1]->d0);
-         Hists[6][32]->Fill((*selectedTPs)[1]->rinv);
-         Hists[6][33]->Fill((*selectedTPs)[1]->pdgid);
+         h_index += 7;
+         Hists[2][h_index++]->Fill((*selectedTPs)[0]->pt);
+         Hists[2][h_index++]->Fill((*selectedTPs)[0]->eta);
+         Hists[2][h_index++]->Fill((*selectedTPs)[0]->phi);
+         Hists[2][h_index++]->Fill((*selectedTPs)[0]->z0);
+         Hists[2][h_index++]->Fill((*selectedTPs)[0]->d0);
+         Hists[2][h_index++]->Fill((*selectedTPs)[0]->charge);
+         Hists[2][h_index++]->Fill((*selectedTPs)[0]->pdgid);
+         Hists[2][h_index++]->Fill((*selectedTPs)[1]->pt);
+         Hists[2][h_index++]->Fill((*selectedTPs)[1]->eta);
+         Hists[2][h_index++]->Fill((*selectedTPs)[1]->phi);
+         Hists[2][h_index++]->Fill((*selectedTPs)[1]->z0);
+         Hists[2][h_index++]->Fill((*selectedTPs)[1]->d0);
+         Hists[2][h_index++]->Fill((*selectedTPs)[1]->charge);
+         Hists[2][h_index++]->Fill((*selectedTPs)[1]->pdgid);
+         Hists[2][h_index++]->Fill(((*selectedTPs)[0]->z0 - (*selectedTPs)[1]->z0));
+         Hists[2][h_index++]->Fill(((*selectedTPs)[0]->d0 - (*selectedTPs)[1]->d0));
+         Hists[2][h_index++]->Fill((deltaPhi((*selectedTPs)[0]->phi, (*selectedTPs)[1]->phi)));
+         Hists[2][h_index++]->Fill((*selectedTPs_zmin)[0]->pt);
+         Hists[2][h_index++]->Fill((*selectedTPs_zmin)[0]->eta);
+         Hists[2][h_index++]->Fill((*selectedTPs_zmin)[0]->phi);
+         Hists[2][h_index++]->Fill((*selectedTPs_zmin)[0]->z0);
+         Hists[2][h_index++]->Fill((*selectedTPs_zmin)[0]->d0);
+         Hists[2][h_index++]->Fill((*selectedTPs_zmin)[0]->charge);
+         Hists[2][h_index++]->Fill((*selectedTPs_zmin)[0]->pdgid);
+         Hists[2][h_index++]->Fill((*selectedTPs_zmin)[1]->pt);
+         Hists[2][h_index++]->Fill((*selectedTPs_zmin)[1]->eta);
+         Hists[2][h_index++]->Fill((*selectedTPs_zmin)[1]->phi);
+         Hists[2][h_index++]->Fill((*selectedTPs_zmin)[1]->z0);
+         Hists[2][h_index++]->Fill((*selectedTPs_zmin)[1]->d0);
+         Hists[2][h_index++]->Fill((*selectedTPs_zmin)[1]->charge);
+         Hists[2][h_index++]->Fill((*selectedTPs_zmin)[1]->pdgid);
+         Hists[2][h_index++]->Fill(((*selectedTPs_zmin)[0]->z0 - (*selectedTPs_zmin)[1]->z0));
+         Hists[2][h_index++]->Fill(((*selectedTPs_zmin)[0]->d0 - (*selectedTPs_zmin)[1]->d0));
+         Hists[2][h_index++]->Fill((deltaPhi((*selectedTPs_zmin)[0]->phi, (*selectedTPs_zmin)[1]->phi)));
+         Hists[2][h_index++]->Fill((*selectedTPs_dmin)[0]->pt);
+         Hists[2][h_index++]->Fill((*selectedTPs_dmin)[0]->eta);
+         Hists[2][h_index++]->Fill((*selectedTPs_dmin)[0]->phi);
+         Hists[2][h_index++]->Fill((*selectedTPs_dmin)[0]->z0);
+         Hists[2][h_index++]->Fill((*selectedTPs_dmin)[0]->d0);
+         Hists[2][h_index++]->Fill((*selectedTPs_dmin)[0]->charge);
+         Hists[2][h_index++]->Fill((*selectedTPs_dmin)[0]->pdgid);
+         Hists[2][h_index++]->Fill((*selectedTPs_dmin)[1]->pt);
+         Hists[2][h_index++]->Fill((*selectedTPs_dmin)[1]->eta);
+         Hists[2][h_index++]->Fill((*selectedTPs_dmin)[1]->phi);
+         Hists[2][h_index++]->Fill((*selectedTPs_dmin)[1]->z0);
+         Hists[2][h_index++]->Fill((*selectedTPs_dmin)[1]->d0);
+         Hists[2][h_index++]->Fill((*selectedTPs_dmin)[1]->charge);
+         Hists[2][h_index++]->Fill((*selectedTPs_dmin)[1]->pdgid);
+         Hists[2][h_index++]->Fill(((*selectedTPs_dmin)[0]->z0 - (*selectedTPs_dmin)[1]->z0));
+         Hists[2][h_index++]->Fill(((*selectedTPs_dmin)[0]->d0 - (*selectedTPs_dmin)[1]->d0));
+         Hists[2][h_index++]->Fill((deltaPhi((*selectedTPs_dmin)[0]->phi, (*selectedTPs_dmin)[1]->phi)));
       }
 
+      // True Number of Tracks >= 2 and minimum d0 tracks are opposite sign muons
+      if (ntp >= 2 && ((*selectedTPs_dmin)[0]->charge * (*selectedTPs_dmin)[1]->charge < 0) && (abs((*selectedTPs_dmin)[0]->pdgid) == 13) && (abs((*selectedTPs_dmin)[1]->pdgid) == 13))
+      {
+         h_index = 0;
+         Hists[3][h_index++]->Fill(ntp);
+         for (int i = 0; i < ntp; i++)
+         {
+            Hists[3][h_index]->Fill((*selectedTPs)[i]->pt);
+            Hists[3][h_index + 1]->Fill((*selectedTPs)[i]->eta);
+            Hists[3][h_index + 2]->Fill((*selectedTPs)[i]->phi);
+            Hists[3][h_index + 3]->Fill((*selectedTPs)[i]->z0);
+            Hists[3][h_index + 4]->Fill((*selectedTPs)[i]->d0);
+            Hists[3][h_index + 5]->Fill((*selectedTPs)[i]->charge);
+            Hists[3][h_index + 6]->Fill((*selectedTPs)[i]->pdgid);
+         }
+         h_index += 7;
+         Hists[3][h_index++]->Fill((*selectedTPs)[0]->pt);
+         Hists[3][h_index++]->Fill((*selectedTPs)[0]->eta);
+         Hists[3][h_index++]->Fill((*selectedTPs)[0]->phi);
+         Hists[3][h_index++]->Fill((*selectedTPs)[0]->z0);
+         Hists[3][h_index++]->Fill((*selectedTPs)[0]->d0);
+         Hists[3][h_index++]->Fill((*selectedTPs)[0]->charge);
+         Hists[3][h_index++]->Fill((*selectedTPs)[0]->pdgid);
+         Hists[3][h_index++]->Fill((*selectedTPs)[1]->pt);
+         Hists[3][h_index++]->Fill((*selectedTPs)[1]->eta);
+         Hists[3][h_index++]->Fill((*selectedTPs)[1]->phi);
+         Hists[3][h_index++]->Fill((*selectedTPs)[1]->z0);
+         Hists[3][h_index++]->Fill((*selectedTPs)[1]->d0);
+         Hists[3][h_index++]->Fill((*selectedTPs)[1]->charge);
+         Hists[3][h_index++]->Fill((*selectedTPs)[1]->pdgid);
+         Hists[3][h_index++]->Fill(((*selectedTPs)[0]->z0 - (*selectedTPs)[1]->z0));
+         Hists[3][h_index++]->Fill(((*selectedTPs)[0]->d0 - (*selectedTPs)[1]->d0));
+         Hists[3][h_index++]->Fill((deltaPhi((*selectedTPs)[0]->phi, (*selectedTPs)[1]->phi)));
+         Hists[3][h_index++]->Fill((*selectedTPs_zmin)[0]->pt);
+         Hists[3][h_index++]->Fill((*selectedTPs_zmin)[0]->eta);
+         Hists[3][h_index++]->Fill((*selectedTPs_zmin)[0]->phi);
+         Hists[3][h_index++]->Fill((*selectedTPs_zmin)[0]->z0);
+         Hists[3][h_index++]->Fill((*selectedTPs_zmin)[0]->d0);
+         Hists[3][h_index++]->Fill((*selectedTPs_zmin)[0]->charge);
+         Hists[3][h_index++]->Fill((*selectedTPs_zmin)[0]->pdgid);
+         Hists[3][h_index++]->Fill((*selectedTPs_zmin)[1]->pt);
+         Hists[3][h_index++]->Fill((*selectedTPs_zmin)[1]->eta);
+         Hists[3][h_index++]->Fill((*selectedTPs_zmin)[1]->phi);
+         Hists[3][h_index++]->Fill((*selectedTPs_zmin)[1]->z0);
+         Hists[3][h_index++]->Fill((*selectedTPs_zmin)[1]->d0);
+         Hists[3][h_index++]->Fill((*selectedTPs_zmin)[1]->charge);
+         Hists[3][h_index++]->Fill((*selectedTPs_zmin)[1]->pdgid);
+         Hists[3][h_index++]->Fill(((*selectedTPs_zmin)[0]->z0 - (*selectedTPs_zmin)[1]->z0));
+         Hists[3][h_index++]->Fill(((*selectedTPs_zmin)[0]->d0 - (*selectedTPs_zmin)[1]->d0));
+         Hists[3][h_index++]->Fill((deltaPhi((*selectedTPs_zmin)[0]->phi, (*selectedTPs_zmin)[1]->phi)));
+         Hists[3][h_index++]->Fill((*selectedTPs_dmin)[0]->pt);
+         Hists[3][h_index++]->Fill((*selectedTPs_dmin)[0]->eta);
+         Hists[3][h_index++]->Fill((*selectedTPs_dmin)[0]->phi);
+         Hists[3][h_index++]->Fill((*selectedTPs_dmin)[0]->z0);
+         Hists[3][h_index++]->Fill((*selectedTPs_dmin)[0]->d0);
+         Hists[3][h_index++]->Fill((*selectedTPs_dmin)[0]->charge);
+         Hists[3][h_index++]->Fill((*selectedTPs_dmin)[0]->pdgid);
+         Hists[3][h_index++]->Fill((*selectedTPs_dmin)[1]->pt);
+         Hists[3][h_index++]->Fill((*selectedTPs_dmin)[1]->eta);
+         Hists[3][h_index++]->Fill((*selectedTPs_dmin)[1]->phi);
+         Hists[3][h_index++]->Fill((*selectedTPs_dmin)[1]->z0);
+         Hists[3][h_index++]->Fill((*selectedTPs_dmin)[1]->d0);
+         Hists[3][h_index++]->Fill((*selectedTPs_dmin)[1]->charge);
+         Hists[3][h_index++]->Fill((*selectedTPs_dmin)[1]->pdgid);
+         Hists[3][h_index++]->Fill(((*selectedTPs_dmin)[0]->z0 - (*selectedTPs_dmin)[1]->z0));
+         Hists[3][h_index++]->Fill(((*selectedTPs_dmin)[0]->d0 - (*selectedTPs_dmin)[1]->d0));
+         Hists[3][h_index++]->Fill((deltaPhi((*selectedTPs_dmin)[0]->phi, (*selectedTPs_dmin)[1]->phi)));
+      }
+/*
       for (int l = 0; l < selectedTracks->size(); l++)
       {
          delete (*selectedTracks)[l];
+         delete (*selectedTracks_zmin)[l];
+         delete (*selectedTracks_dmin)[l];
       }
+*/
       for (int l = 0; l < selectedTPs->size(); l++)
       {
          delete (*selectedTPs)[l];
+         delete (*selectedTPs_zmin)[l];
+         delete (*selectedTPs_dmin)[l];
       }
+/*
       selectedTracks->clear();
       selectedTracks->shrink_to_fit();
       delete selectedTracks;
+      selectedTracks_zmin->clear();
+      selectedTracks_zmin->shrink_to_fit();
+      delete selectedTracks_zmin;
+      selectedTracks_dmin->clear();
+      selectedTracks_dmin->shrink_to_fit();
+      delete selectedTracks_dmin;
+*/
       selectedTPs->clear();
       selectedTPs->shrink_to_fit();
       delete selectedTPs;
-      
+      selectedTPs_zmin->clear();
+      selectedTPs_zmin->shrink_to_fit();
+      delete selectedTPs_zmin;
+      selectedTPs_dmin->clear();
+      selectedTPs_dmin->shrink_to_fit();
+      delete selectedTPs_dmin;
+
    } // end event loop
    cout << endl
-        << "from " << nevt << " events, " << nAccept << " events are accepted" << endl;
+        << "from " << nevt << " events, " << nAccept << " events are accepted\t" << Hists[1][0]->GetEntries() << "  " << Hists[2][0]->GetEntries() << "  " << Hists[3][0]->GetEntries() << endl;
 
    // ---------------------------------------------------------------------------------------------------------
    //some Histograms
@@ -592,7 +678,7 @@ void Analyzer_DisplacedMuon::Loop(TString type,
       {
          Hists[k][l]->Write("", TObject::kOverwrite);
          Hists[k][l]->Draw();
-         Hists[k][l]->GetYaxis()->SetTitle("Events");
+         Hists[k][l]->GetYaxis()->SetTitle("Events");/*
          if (vars[l].Contains("pt"))
          {
             Hists[k][l]->GetXaxis()->SetTitle("Pt");
@@ -613,11 +699,11 @@ void Analyzer_DisplacedMuon::Loop(TString type,
          {
             Hists[k][l]->GetXaxis()->SetTitle("d0");
          }
-         else if (vars[l].Contains("rinv"))
+         else if (vars[l].Contains("charge"))
          {
-            Hists[k][l]->GetXaxis()->SetTitle("rInv");
-         }
-         // Hists[k][l]->GetXaxis()->SetTitle(+Hists[k][l]->GetName());
+            Hists[k][l]->GetXaxis()->SetTitle("charge");
+         }*/
+         Hists[k][l]->GetXaxis()->SetTitle(+Hists[k][l]->GetName());
          c.SaveAs(DIR + regions[k] + "/" + type + "_" + Hists[k][l]->GetName() + ".pdf");
       }
    }
@@ -684,7 +770,7 @@ void SetPlotStyle()
    gStyle->SetEndErrorSize(0.);
 
    // do not display any of the standard histogram decorations
-   gStyle->SetOptTitle(1);
+   gStyle->SetOptTitle(0);
    gStyle->SetOptStat(0);
    gStyle->SetOptFit(0);
 

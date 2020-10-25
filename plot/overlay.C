@@ -29,43 +29,60 @@ void mySmallText(Double_t x,Double_t y,Color_t color,char *text);
 // Main script
 void overlay(TString what="") {
 
-  gROOT->SetBatch();
-  gErrorIgnoreLevel = kWarning;
+  TString makedir = "mkdir -p Overlay/";
+  const char *mkDIR = makedir.Data();
+  gSystem->Exec(mkDIR);
 
-  SetPlotStyle();
+  std::vector<TString> regions{"tpgeq2", "tpgeq2osMu", "tpgeq2osMu_zmin", "tpgeq2osMu_dmin"};
+  for (int k = 0; k < regions.size(); ++k)
+  {
+    makedir = "mkdir -p Overlay/"+ regions[k] + "/";
+    gSystem->Exec(makedir.Data());
+  }
+  TString path;
+    gROOT->SetBatch();
+    gErrorIgnoreLevel = kWarning;
 
-  TFile *tree1 = new TFile("cT0/output_events_Dark_Photon_cT0.root");
-  TFile *tree2 = new TFile("cT10/output_events_Dark_Photon_cT10.root");
-  TFile *tree3 = new TFile("cT100/output_events_Dark_Photon_cT100.root");
-  TFile *tree4 = new TFile("cT5000/output_events_Dark_Photon_cT5000.root");
-  TFile *tree5 = new TFile("cT10000/output_events_Dark_Photon_cT10000.root");
-  // TFile* tree4 = new TFile("output_TTbar_PU200_hybrid_displaced_500evt.root");
+    SetPlotStyle();
 
-  TList *list = tree1->GetListOfKeys();
-  TObject *obj = list->First();
-  
-  while((obj=list->After(obj))){
-    what=obj->GetName();
+    TFile *tree1 = new TFile("cT0/output_events_Dark_Photon_cT0.root");
+    TFile *tree2 = new TFile("cT10/output_events_Dark_Photon_cT10.root");
+    TFile *tree3 = new TFile("cT100/output_events_Dark_Photon_cT100.root");
+    TFile *tree4 = new TFile("cT5000/output_events_Dark_Photon_cT5000.root");
+    TFile *tree5 = new TFile("cT10000/output_events_Dark_Photon_cT10000.root");
+    // TFile* tree4 = new TFile("output_TTbar_PU200_hybrid_displaced_500evt.root");
 
-  TH1F* h1 = (TH1F*) tree1->Get(what);
-  TH1F* h2 = (TH1F*) tree2->Get(what);
-  TH1F* h3 = (TH1F*) tree3->Get(what);
-  TH1F* h4 = (TH1F*) tree4->Get(what);
-  TH1F *h5 = (TH1F*) tree5->Get(what);
+    TList *list = tree1->GetListOfKeys();
+    TObject *obj = list->First();
 
-  h1->Sumw2();
-  h2->Sumw2();
-  h3->Sumw2();
-  h4->Sumw2();
-  h5->Sumw2();
+    while ((obj = list->After(obj)))
+    {
+      what = obj->GetName();
 
-  h1->Scale(1.0 / h1->GetEntries());
-  h2->Scale(1.0 / h2->GetEntries());
-  h3->Scale(1.0 / h3->GetEntries());
-  h4->Scale(1.0 / h4->GetEntries());
-  h5->Scale(1.0 / h5->GetEntries());
+      TH1F *h1 = (TH1F *)tree1->Get(what);
+      TH1F *h2 = (TH1F *)tree2->Get(what);
+      TH1F *h3 = (TH1F *)tree3->Get(what);
+      TH1F *h4 = (TH1F *)tree4->Get(what);
+      TH1F *h5 = (TH1F *)tree5->Get(what);
 
-  /*
+      // h1->Sumw2();
+      // h2->Sumw2();
+      // h3->Sumw2();
+      // h4->Sumw2();
+      // h5->Sumw2();
+
+      if (h1->GetEntries())
+        h1->Scale(1.0 / h1->GetEntries());
+      if (h2->GetEntries())
+        h2->Scale(1.0 / h2->GetEntries());
+      if (h3->GetEntries())
+        h3->Scale(1.0 / h3->GetEntries());
+      if (h4->GetEntries())
+        h4->Scale(1.0 / h4->GetEntries());
+      if (h5->GetEntries())
+        h5->Scale(1.0 / h5->GetEntries());
+
+      /*
   if (what.Contains("ntrk")) {
     h1->Rebin(10);
     h2->Rebin(10);
@@ -75,35 +92,38 @@ void overlay(TString what="") {
   }
   */
 
-  THStack hs("hs", what);
+      THStack hs("hs", what);
 
-  TCanvas c;
-  h1->SetLineColor(1);
-  h1->SetMarkerColor(1);
-  h1->SetMarkerStyle(8);
-  hs.Add(h1);
-  h2->SetLineColor(2);
-  h2->SetMarkerColor(2);
-  h2->SetMarkerStyle(24);
-  hs.Add(h2);
-  h3->SetLineColor(4);
-  h3->SetMarkerColor(4);
-  h3->SetMarkerStyle(22);
-  hs.Add(h3);
+      TCanvas c;
+      h1->SetLineColor(1);
+      h1->SetMarkerColor(1);
+      h1->SetMarkerStyle(8);
 
-  h4->SetLineColor(8);
-  h4->SetMarkerColor(8);
-  h4->SetMarkerStyle(23);
-  hs.Add(h4);
-  h5->SetLineColor(28);
-  h5->SetMarkerColor(28);
-  h5->SetMarkerStyle(29);
-  hs.Add(h5);
+      h2->SetLineColor(2);
+      h2->SetMarkerColor(2);
+      h2->SetMarkerStyle(24);
 
-  hs.Draw("nostack");
+      h3->SetLineColor(4);
+      h3->SetMarkerColor(4);
+      h3->SetMarkerStyle(22);
 
-  hs.GetYaxis()->SetTitle("Events");
-  if (what.Contains("pt"))
+      h4->SetLineColor(8);
+      h4->SetMarkerColor(8);
+      h4->SetMarkerStyle(23);
+
+      h5->SetLineColor(28);
+      h5->SetMarkerColor(28);
+      h5->SetMarkerStyle(29);
+
+      //hs.Add(h1);
+      hs.Add(h2);
+      hs.Add(h3);
+      //hs.Add(h4);
+      //hs.Add(h5);
+      hs.Draw("nostack");
+
+      hs.GetYaxis()->SetTitle("Events");
+      /*  if (what.Contains("pt"))
   {
     hs.GetXaxis()->SetTitle("Pt");
   }
@@ -127,55 +147,63 @@ void overlay(TString what="") {
   {
     hs.GetXaxis()->SetTitle("rInv");
   }
-  else{
-    hs.GetXaxis()->SetTitle(what);
+  else{*/
+      hs.GetXaxis()->SetTitle(what);
+      //}
+
+      TLegend *l;
+      char sample[500];
+      sprintf(sample, "Dark Photon, PU=0");
+
+      if (what.Contains("eff"))
+      {
+        //l = new TLegend(0.55,0.22,0.85,0.40);
+        mySmallText(0.25, 0.22, 1, sample);
+      }
+      else
+      {
+        //l = new TLegend(0.2,0.72,0.5,0.9);
+        mySmallText(0.6, 0.82, 1, sample);
+      }
+      l = new TLegend(0.15, 0.22, "", "brNDC");
+      // l = new TLegend(0.55, 0.22, 0.85, 0.40);
+      l->SetFillColor(0);
+      l->SetLineColor(0);
+      l->SetTextSize(0.03);
+      // l->AddEntry(h1, "cT0", "lep");
+      l->AddEntry(h2, "cT10", "lep");
+      l->AddEntry(h3, "cT100", "lep");
+      // l->AddEntry(h4, "cT5000", "lep");
+      // l->AddEntry(h5, "cT10000", "lep");
+      // l->AddEntry(h1, "Seed L3L4L2", "lep");
+      // l->AddEntry(h2, "Seed L5L6L4", "lep");
+      // l->AddEntry(h3, "Seed L2L3D1", "lep");
+      // l->AddEntry(h4, "Seed D1D2L2", "lep");
+
+      l->SetTextFont(42);
+      l->Draw();
+
+      gPad->SetGridy();
+      path="";
+      for (int k = 0; k < regions.size(); ++k)
+      {
+
+        if(what.Contains(regions[k]+"_")){
+          path=regions[k];
+          break;
+        }
+      }
+
+        c.SaveAs("Overlay/" + path + "/overlay_" + what + ".png");
+
+        delete l;
+      }
+
+    delete tree1;
+    delete tree2;
+    delete tree3;
+    delete tree4;
   }
-
-  TLegend* l;
-  char sample[500];
-  sprintf(sample,"Dark Photon, PU=0");
-  
-  if (what.Contains("eff")) {
-    //l = new TLegend(0.55,0.22,0.85,0.40);
-    mySmallText(0.25,0.22,1,sample);
-  }
-  else {
-    //l = new TLegend(0.2,0.72,0.5,0.9);
-    mySmallText(0.6,0.82,1,sample);
-  }
-  l = new TLegend(0.15, 0.22, "", "brNDC");
-  // l = new TLegend(0.55, 0.22, 0.85, 0.40);
-  l->SetFillColor(0);
-  l->SetLineColor(0);
-  l->SetTextSize(0.03);
-  l->AddEntry(h1, "cT0", "lep");
-  l->AddEntry(h2, "cT10", "lep");
-  l->AddEntry(h3, "cT100", "lep");
-  l->AddEntry(h4, "cT5000", "lep");
-  l->AddEntry(h5, "cT10000", "lep");
-  // l->AddEntry(h1, "Seed L3L4L2", "lep");
-  // l->AddEntry(h2, "Seed L5L6L4", "lep");
-  // l->AddEntry(h3, "Seed L2L3D1", "lep");
-  // l->AddEntry(h4, "Seed D1D2L2", "lep");
-
-  l->SetTextFont(42);
-  l->Draw();	
-
-  gPad->SetGridy();
-
-  c.SaveAs("Overlay/overlay_"+what+".pdf");
-
-  delete l;
-
-  }
-  
-  delete tree1;
-  delete tree2;
-  delete tree3;
-  delete tree4;
-
-}
-
 
 void SetPlotStyle() {
 

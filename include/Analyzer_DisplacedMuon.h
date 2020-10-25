@@ -27,17 +27,17 @@ public:
    float z0;
    float eta;
    float phi;
-   float rinv;
+   float charge;
    int index;
    int pdgid = -99999;
-   Track_Parameters(float pt_in, float d0_in, float z0_in, float eta_in, float phi_in, float rinv_in, int index_in, int pdgid_in)
+   Track_Parameters(float pt_in, float d0_in, float z0_in, float eta_in, float phi_in, float charge_in, int index_in, int pdgid_in)
    {
       pt = pt_in;
       d0 = d0_in;
       z0 = z0_in;
       eta = eta_in;
       phi = phi_in;
-      rinv = rinv_in;
+      charge = charge_in;
       index = index_in;
       pdgid = pdgid_in;
    }

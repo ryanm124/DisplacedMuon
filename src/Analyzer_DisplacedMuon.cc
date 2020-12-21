@@ -269,7 +269,7 @@ void Analyzer_DisplacedMuon::Loop(TString type,
          float rp = ((1/(2*K)) - trk_d0->at(it))/(-trk_rinv->at(it));
          float dxy = sqrt(rp*rp + (trk_d0->at(it)/K) - 1/(4*K*K));
 
-         selectedTracks->push_back(new Track_Parameters(trk_pt->at(it), dxy, trk_z0->at(it), trk_eta->at(it), trk_phi->at(it), -trk_rinv->at(it), it, -99999));
+         selectedTracks->push_back(new Track_Parameters(trk_pt->at(it), trk_d0->at(it), trk_z0->at(it), trk_eta->at(it), trk_phi->at(it), -trk_rinv->at(it), it, -99999));
          // selectedTPs->push_back(new Track_Parameters(trk_pt->at(it), trk_d0->at(it), trk_z0->at(it), trk_eta->at(it), trk_phi->at(it), -trk_rinv->at(it), it, -99999));
       }
 
@@ -318,7 +318,7 @@ void Analyzer_DisplacedMuon::Loop(TString type,
          // if(fabs(dxy-tp_dxy->at(it))>0.1)
             // cout<<i<<"\t dxy = "<<dxy<<"  \t tp_dxy = "<<tp_dxy->at(it)<<endl;
          // cout << i << "\t" << tp_z0->at(it) << "\t" << tp_d0->at(it) << "\t" << tp_pt->at(it) << "\t" << tp_pdgid->at(it)<<"\n";
-         selectedTPs->push_back(new Track_Parameters(tp_pt->at(it), dxy, tp_z0_prod->at(it), tp_eta->at(it), tp_phi->at(it), tp_charge->at(it), it, tp_pdgid->at(it)));
+         selectedTPs->push_back(new Track_Parameters(tp_pt->at(it), tp_dxy->at(it), tp_z0_prod->at(it), tp_eta->at(it), tp_phi->at(it), tp_charge->at(it), it, tp_pdgid->at(it)));
       } // end tp loop
 
       // cout<<"End of tracking particle loop \n";

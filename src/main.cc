@@ -2,9 +2,13 @@
 
 int main()
 {
-    // TString type_dir = "/afs/cern.ch/user/b/bharikri/Projects/Thesis/Results_L1/2020_09_21_Dark_Photon/";
-    TString type_dir = "~/prj/Thesis/L1Tracking/DisplacedMuon/plot/";
-    TString file_dir = "~/prj/Thesis/Results_L1/2020_10_11_Dark_Photon_Files/";
+    // TString type_dir = "~/prj/Thesis/L1Tracking/DisplacedMuon/plot/";
+    TString type_dir = "/afs/cern.ch/user/b/bharikri/Projects/Thesis/L1Tracking/DisplacedMuon/plot/";
+    // TString file_dir = "~/prj/Thesis/Results_L1/2020_10_22_Dark_Photon_Files_GenParticles/";
+    TString file_dir = "/afs/cern.ch/user/b/bharikri/Projects/Thesis/Results_L1/2020_10_22_Dark_Photon_Files_GenParticles/";
+    // TString file_dir = "~/prj/Thesis/Results_L1/2020_11_19_Neutrino_Files/";
+    TString file_dir_nu = "/eos/home-b/bharikri/NTuples/L1Tracking/NeutrinoGun_PU200/";
+    
     TChain *ch1 = new TChain("L1TrackNtuple/eventTree");
     ch1->Add(file_dir + "cT0/events_Dark_Photon_cT0.root");
     Analyzer_DisplacedMuon t1(ch1);
@@ -29,6 +33,10 @@ int main()
     ch5->Add(file_dir + "cT10000/events_Dark_Photon_cT10000.root");
     Analyzer_DisplacedMuon t5(ch5);
     t5.Loop("events_Dark_Photon_cT10000", type_dir + "cT10000/",10.0,0.0,0);
-
-    return 0;
+/*
+    TChain *ch6 = new TChain("L1TrackNtuple/eventTree");
+    ch6->Add(file_dir_nu + "events_NeutrinoGun_PU200.root");
+    Analyzer_DisplacedMuon t6(ch6);
+    t6.Loop("events_NeutrinoGun_PU200", type_dir + "NeutrinoGun_PU200/", 10.0, 0.0, 0);*/
+    return 0; 
 }

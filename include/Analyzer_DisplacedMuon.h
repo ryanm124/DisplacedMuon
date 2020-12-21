@@ -1,8 +1,8 @@
 //////////////////////////////////////////////////////////
 // This class has been automatically generated on
-// Sun Oct 11 05:29:14 2020 by ROOT version 6.22/02
+// Wed Oct 21 23:43:52 2020 by ROOT version 6.22/00
 // from TTree eventTree/Event tree
-// found on file: events_Dark_Photon_cT10.root
+// found on file: events_Dark_Photon_cT100.root
 //////////////////////////////////////////////////////////
 
 #ifndef Analyzer_DisplacedMuon_h
@@ -11,9 +11,10 @@
 #include <TROOT.h>
 #include <TChain.h>
 #include <TFile.h>
-#include <vector>
+#include <iostream>
 
 // Header file for the classes stored in the TTree if any.
+#include "vector"
 #include "vector"
 #include "vector"
 
@@ -122,6 +123,25 @@ public :
    vector<float>   *jet_tp_sumpt;
    vector<float>   *jet_trk_sumpt;
    vector<float>   *jet_matchtrk_sumpt;
+ //L1Analysis::L1AnalysisGeneratorDataFormat *Generator;
+   Float_t         weight;
+   Float_t         pthat;
+   Int_t           nVtx;
+   Int_t           nMeanPU;
+   Int_t           nPart;
+   vector<int>     partId;
+   vector<int>     partStat;
+   vector<int>     partParent;
+   vector<float>   partPt;
+   vector<float>   partEta;
+   vector<float>   partPhi;
+   vector<float>   partE;
+   vector<int>     partCh;
+   Int_t           nJet;
+   vector<float>   jetPt;
+   vector<float>   jetEta;
+   vector<float>   jetPhi;
+   vector<float>   jetM;
 
    // List of branches
    TBranch        *b_trk_pt;   //!
@@ -194,6 +214,24 @@ public :
    TBranch        *b_jet_tp_sumpt;   //!
    TBranch        *b_jet_trk_sumpt;   //!
    TBranch        *b_jet_matchtrk_sumpt;   //!
+   TBranch        *b_Generator_weight;   //!
+   TBranch        *b_Generator_pthat;   //!
+   TBranch        *b_Generator_nVtx;   //!
+   TBranch        *b_Generator_nMeanPU;   //!
+   TBranch        *b_Generator_nPart;   //!
+   TBranch        *b_Generator_partId;   //!
+   TBranch        *b_Generator_partStat;   //!
+   TBranch        *b_Generator_partParent;   //!
+   TBranch        *b_Generator_partPt;   //!
+   TBranch        *b_Generator_partEta;   //!
+   TBranch        *b_Generator_partPhi;   //!
+   TBranch        *b_Generator_partE;   //!
+   TBranch        *b_Generator_partCh;   //!
+   TBranch        *b_Generator_nJet;   //!
+   TBranch        *b_Generator_jetPt;   //!
+   TBranch        *b_Generator_jetEta;   //!
+   TBranch        *b_Generator_jetPhi;   //!
+   TBranch        *b_Generator_jetM;   //!
 
    Analyzer_DisplacedMuon(TTree *tree=0);
    virtual ~Analyzer_DisplacedMuon();
@@ -407,6 +445,24 @@ void Analyzer_DisplacedMuon::Init(TTree *tree)
    fChain->SetBranchAddress("jet_tp_sumpt", &jet_tp_sumpt, &b_jet_tp_sumpt);
    fChain->SetBranchAddress("jet_trk_sumpt", &jet_trk_sumpt, &b_jet_trk_sumpt);
    fChain->SetBranchAddress("jet_matchtrk_sumpt", &jet_matchtrk_sumpt, &b_jet_matchtrk_sumpt);
+   fChain->SetBranchAddress("weight", &weight, &b_Generator_weight);
+   fChain->SetBranchAddress("pthat", &pthat, &b_Generator_pthat);
+   fChain->SetBranchAddress("nVtx", &nVtx, &b_Generator_nVtx);
+   fChain->SetBranchAddress("nMeanPU", &nMeanPU, &b_Generator_nMeanPU);
+   fChain->SetBranchAddress("nPart", &nPart, &b_Generator_nPart);
+   fChain->SetBranchAddress("partId", &partId, &b_Generator_partId);
+   fChain->SetBranchAddress("partStat", &partStat, &b_Generator_partStat);
+   fChain->SetBranchAddress("partParent", &partParent, &b_Generator_partParent);
+   fChain->SetBranchAddress("partPt", &partPt, &b_Generator_partPt);
+   fChain->SetBranchAddress("partEta", &partEta, &b_Generator_partEta);
+   fChain->SetBranchAddress("partPhi", &partPhi, &b_Generator_partPhi);
+   fChain->SetBranchAddress("partE", &partE, &b_Generator_partE);
+   fChain->SetBranchAddress("partCh", &partCh, &b_Generator_partCh);
+   fChain->SetBranchAddress("nJet", &nJet, &b_Generator_nJet);
+   fChain->SetBranchAddress("jetPt", &jetPt, &b_Generator_jetPt);
+   fChain->SetBranchAddress("jetEta", &jetEta, &b_Generator_jetEta);
+   fChain->SetBranchAddress("jetPhi", &jetPhi, &b_Generator_jetPhi);
+   fChain->SetBranchAddress("jetM", &jetM, &b_Generator_jetM);
    Notify();
 }
 

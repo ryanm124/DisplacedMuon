@@ -33,7 +33,7 @@ void overlay(TString what="") {
   const char *mkDIR = makedir.Data();
   gSystem->Exec(mkDIR);
 
-  std::vector<TString> regions{"tpgeq2", "tpgeq2osMu", "tpgeq2osMu_zmin", "tpgeq2osMu_dmin"};
+  std::vector<TString> regions{"tpgeq2", "tpgeq2osMu"};
   for (int k = 0; k < regions.size(); ++k)
   {
     makedir = "mkdir -p Overlay/"+ regions[k] + "/";
@@ -70,6 +70,15 @@ void overlay(TString what="") {
       // h3->Sumw2();
       // h4->Sumw2();
       // h5->Sumw2();
+
+      if (!what.Contains("Mu_n_Mu_p")){
+
+      h1->GetXaxis()->SetRange(1, h1->GetNbinsX() + 2);
+      h2->GetXaxis()->SetRange(1, h2->GetNbinsX() + 2);
+      h3->GetXaxis()->SetRange(1, h3->GetNbinsX() + 2);
+      h4->GetXaxis()->SetRange(1, h4->GetNbinsX() + 2);
+      h5->GetXaxis()->SetRange(1, h5->GetNbinsX() + 2);
+      }
 
       if (h1->GetEntries())
         h1->Scale(1.0 / h1->GetEntries());
@@ -115,12 +124,14 @@ void overlay(TString what="") {
       h5->SetMarkerColor(28);
       h5->SetMarkerStyle(29);
 
-      //hs.Add(h1);
+      hs.Add(h1);
       hs.Add(h2);
       hs.Add(h3);
       //hs.Add(h4);
       //hs.Add(h5);
       hs.Draw("nostack");
+      // hs.GetXaxis()->SetLimits(, 3);
+      hs.GetXaxis()->SetRange(1, h3->GetNbinsX() + 2);
 
       hs.GetYaxis()->SetTitle("Events");
       /*  if (what.Contains("pt"))
@@ -148,7 +159,7 @@ void overlay(TString what="") {
     hs.GetXaxis()->SetTitle("rInv");
   }
   else{*/
-      hs.GetXaxis()->SetTitle(what);
+      // hs.GetXaxis()->SetTitle(what);
       //}
 
       TLegend *l;
@@ -163,14 +174,14 @@ void overlay(TString what="") {
       else
       {
         //l = new TLegend(0.2,0.72,0.5,0.9);
-        mySmallText(0.6, 0.82, 1, sample);
+        mySmallText(0.4, 0.82, 1, sample);
       }
       l = new TLegend(0.15, 0.22, "", "brNDC");
       // l = new TLegend(0.55, 0.22, 0.85, 0.40);
       l->SetFillColor(0);
       l->SetLineColor(0);
       l->SetTextSize(0.03);
-      // l->AddEntry(h1, "cT0", "lep");
+      l->AddEntry(h1, "cT0", "lep");
       l->AddEntry(h2, "cT10", "lep");
       l->AddEntry(h3, "cT100", "lep");
       // l->AddEntry(h4, "cT5000", "lep");

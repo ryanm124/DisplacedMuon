@@ -439,7 +439,10 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
          float dxy = sqrt(rp*rp + (trk_d0->at(it)/K) - 1/(4*K*K));
 
          selectedTracks->push_back(new Track_Parameters(trk_pt->at(it), trk_d0->at(it), trk_z0->at(it), trk_eta->at(it), trk_phi->at(it), -trk_rinv->at(it), it, -99999));
+<<<<<<< HEAD
          // (*selectedTracks)[selectedTracks->size()-1]->Propagate_Transverse(1.0/trk_rinv->at(it));
+=======
+>>>>>>> origin/main
          // selectedTPs->push_back(new Track_Parameters(trk_pt->at(it), trk_d0->at(it), trk_z0->at(it), trk_eta->at(it), trk_phi->at(it), -trk_rinv->at(it), it, -99999));
       }
 
@@ -497,6 +500,7 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
          // if(fabs(dxy-tp_dxy->at(it))>0.1)
             // cout<<i<<"\t dxy = "<<dxy<<"  \t tp_dxy = "<<tp_dxy->at(it)<<endl;
          // cout << i << "\t" << tp_z0->at(it) << "\t" << tp_d0->at(it) << "\t" << tp_pt->at(it) << "\t" << tp_pdgid->at(it)<<"\n";
+<<<<<<< HEAD
          selectedTPs->push_back(new Track_Parameters(tp_pt->at(it), tmp_d0, tmp_z0, tp_eta->at(it), tp_phi->at(it), tp_charge->at(it), it, tp_pdgid->at(it)));
          int j = selectedTPs->size()-1;
          // (*selectedTPs)[j]->x0 = tp_x->at(it);
@@ -508,6 +512,9 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
          // cout<<Form("dxy_calc = %5.2f    |   dxy = %5.2f    |  dist = %5.2f    |   eta = %5.2f    |   phi = %5.2f    |   pt = %5.2f",dxy,tp_dxy->at(it),TMath::Sqrt((*selectedTPs)[j]->x*(*selectedTPs)[j]->x + (*selectedTPs)[j]->y*(*selectedTPs)[j]->y),tp_eta->at(it),tp_phi->at(it),tp_pt->at(it))<<endl;//<<" dxy = "<<tp_dxy->at(it)<<"\t \t dist = "<<TMath::Sqrt((*selectedTPs)[j]->x*(*selectedTPs)[j]->x + (*selectedTPs)[j]->y*(*selectedTPs)[j]->y)<<" \t eta = "<<tp_eta->at(it)<<" \t phi = "<<tp_phi->at(it)<<" \t pt = "<<tp_pt->at(it)<<endl;
          htmp_tp_z.Fill(tmp_z0,tp_pt->at(it));
          htmp_tp_d.Fill(tmp_d0,tp_pt->at(it));
+=======
+         selectedTPs->push_back(new Track_Parameters(tp_pt->at(it), tp_dxy->at(it), tp_z0_prod->at(it), tp_eta->at(it), tp_phi->at(it), tp_charge->at(it), it, tp_pdgid->at(it)));
+>>>>>>> origin/main
       } // end tp loop
 
       // cout<<"End of tracking particle loop \n";

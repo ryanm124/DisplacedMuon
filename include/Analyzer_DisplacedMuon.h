@@ -12,8 +12,10 @@
 #include <TChain.h>
 #include <TFile.h>
 #include <iostream>
+#include <TVector3.h>
 
 // Header file for the classes stored in the TTree if any.
+#include "TMath.h"
 #include "vector"
 #include "vector"
 #include "vector"
@@ -25,12 +27,58 @@ class Track_Parameters
 public:
    float pt;
    float d0;
+   float dxy = -99999;
    float z0;
    float eta;
    float phi;
    float charge;
+   float rho;
    int index;
    int pdgid = -99999;
+   float x0;
+   float y0;
+   float dist_calc(float x_dv, float y_dv, float x, float y){
+      dxy = TMath::Sqrt((x_dv-x)*(x_dv-x) + (y_dv-y)*(y_dv-y));
+   }
+   float x(float phi_T=0){
+      return (-charge * rho * TMath::Sin(phi - charge*phi_T) + (-d0 + charge * rho) * TMath::Sin(phi));
+   }
+   float y(float phi_T=0){
+      return ( charge * rho * TMath::Cos(phi - charge*phi_T) - (-d0 + charge * rho) * TMath::Cos(phi));
+   }
+   float z(float phi_T=0){
+      float theta = 2 * TMath::ATan(TMath::Exp(-eta));
+      return (z0 + rho*phi_T/TMath::Tan(theta));
+   }
+   float phi_T(float x, float y){
+      float num = x - (-d0 + charge * rho) * TMath::Sin(phi);
+      float den = y + (-d0 + charge * rho) * TMath::Cos(phi);
+      return ((phi-TMath::ATan2(-num,den))/charge);
+
+/*
+      if(fabs(1-num/den)>1.1){
+         std::cout<<Form("num = %5.2f    |   den = %5.2f    |   check = %10.8f",num,den,fabs(1-num/den))<<"\n";//<<" dxy = "<<tp_dxy->at(it)<<"\t \t dist = "<<TMath::Sqrt((*selectedTPs)[j]->x*(*selectedTPs)[j]->x + (*selectedTPs)[j]->y*(*selectedTPs)[j]->y)<<" \t eta = "<<tp_eta->at(it)<<" \t phi = "<<tp_phi->at(it)<<" \t pt = "<<tp_pt->at(it)<<endl;
+         return (-99999.0);
+      }
+      return(TMath::ACos(1-num/den)/charge);
+
+      
+
+      if(x==-99999){
+         if(fabs((y+((d0 + charge * rho) * TMath::Cos(phi)))/(charge*rho))>1)
+            return(-99999.0);
+         return((phi-TMath::ACos((y+((d0 + charge * rho) * TMath::Cos(phi)))/(charge*rho)))/charge);
+      }
+      else if(y==-99999){
+         if(fabs((x-((d0 + charge * rho) * TMath::Sin(phi)))/(-charge*rho))>1)
+            return (-99999.0);
+         return((phi-TMath::ASin((x-((d0 + charge * rho) * TMath::Sin(phi)))/(-charge*rho)))/charge);
+      }
+      else{
+         return(-99999);
+      }
+      */
+   }
    Track_Parameters(float pt_in, float d0_in, float z0_in, float eta_in, float phi_in, float charge_in, int index_in, int pdgid_in)
    {
       pt = pt_in;
@@ -38,13 +86,57 @@ public:
       z0 = z0_in;
       eta = eta_in;
       phi = phi_in;
-      charge = charge_in;
+      if(charge_in > 0){
+         charge = 1;
+      }
+      else if (charge_in < 0){
+         charge = -1;
+      }
+      else{
+         charge = 0;
+      }
       index = index_in;
       pdgid = pdgid_in;
+      rho = pt / (0.3 * 3.8);
+      x0 =  (-d0 + charge * rho)*TMath::Sin(phi);
+      y0 = -(-d0 + charge * rho)*TMath::Cos(phi);
+   }
+   void Propagate_Transverse(){
+      /*
+      float theta = 2 * TMath::ATan(TMath::Exp(-eta));
+      float phi_T = -z0/(rho/TMath::Tan(theta));
+      x0 = -charge * rho * TMath::Sin(phi - charge*phi_T) + (d0 + charge * rho) * TMath::Sin(phi);
+      y0 =  charge * rho * TMath::Cos(phi - charge*phi_T) - (d0 + charge * rho) * TMath::Cos(phi);
+      
+      
+      rho = pt / (0.3 * 3.8);
+      float x0 = -d0 * TMath::Sin(phi);
+      float y0 =  d0 * TMath::Cos(phi);
+      float lambda = TMath::PiOver2() - 2 * TMath::ATan(TMath::Exp(-eta));
+      float s = -z0/TMath::Sin(lambda);
+      
+      x = x0 + rho *(TMath::Cos(phi + charge * s * TMath::Cos(lambda)/rho) - TMath::Cos(phi));
+      y = y0 + rho *(TMath::Sin(phi + charge * s * TMath::Cos(lambda)/rho) - TMath::Sin(phi));
+*/
+      // return (phi_T);
    }
    ~Track_Parameters(){};
 };
-
+/*
+void Track_Parameters::Propagate_Transverse(){
+   float rho = pt / (0.3 * 3.8);
+   if(charge>0){
+      charge = 1;
+   }
+   else if (charge < 0){
+      charge = -1;
+   }
+   float theta = 2 * TMath::ATan(TMath::Exp(-eta));
+   float phi_T = -z0/(rho/TMath::Tan(theta));
+   x = -charge * rho * TMath::Sin(phi - charge*phi_T) + (d0 + charge * rho) * TMath::Sin(phi);
+   y =  charge * rho * TMath::Cos(phi - charge*phi_T) - (d0 + charge * rho) * TMath::Cos(phi);
+}
+*/
 class Analyzer_DisplacedMuon {
 public :
    TTree          *fChain;   //!pointer to the analyzed TTree or TChain
@@ -89,6 +181,9 @@ public :
    vector<float>   *tp_dxy;
    vector<float>   *tp_d0;
    vector<float>   *tp_z0;
+   vector<float>   *tp_x;
+   vector<float>   *tp_y;
+   vector<float>   *tp_z;
    vector<float>   *tp_d0_prod;
    vector<float>   *tp_z0_prod;
    vector<int>     *tp_pdgid;
@@ -180,6 +275,9 @@ public :
    TBranch        *b_tp_dxy;   //!
    TBranch        *b_tp_d0;   //!
    TBranch        *b_tp_z0;   //!
+   TBranch        *b_tp_x;   //!
+   TBranch        *b_tp_y;   //!
+   TBranch        *b_tp_z;   //!
    TBranch        *b_tp_d0_prod;   //!
    TBranch        *b_tp_z0_prod;   //!
    TBranch        *b_tp_pdgid;   //!
@@ -335,6 +433,9 @@ void Analyzer_DisplacedMuon::Init(TTree *tree)
    tp_dxy = 0;
    tp_d0 = 0;
    tp_z0 = 0;
+   tp_x = 0;
+   tp_y = 0;
+   tp_z = 0;
    tp_d0_prod = 0;
    tp_z0_prod = 0;
    tp_pdgid = 0;
@@ -411,6 +512,9 @@ void Analyzer_DisplacedMuon::Init(TTree *tree)
    fChain->SetBranchAddress("tp_dxy", &tp_dxy, &b_tp_dxy);
    fChain->SetBranchAddress("tp_d0", &tp_d0, &b_tp_d0);
    fChain->SetBranchAddress("tp_z0", &tp_z0, &b_tp_z0);
+   fChain->SetBranchAddress("tp_x", &tp_x, &b_tp_x);
+   fChain->SetBranchAddress("tp_y", &tp_y, &b_tp_y);
+   fChain->SetBranchAddress("tp_z", &tp_z, &b_tp_z);
    fChain->SetBranchAddress("tp_d0_prod", &tp_d0_prod, &b_tp_d0_prod);
    fChain->SetBranchAddress("tp_z0_prod", &tp_z0_prod, &b_tp_z0_prod);
    fChain->SetBranchAddress("tp_pdgid", &tp_pdgid, &b_tp_pdgid);

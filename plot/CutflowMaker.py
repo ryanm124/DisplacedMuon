@@ -67,7 +67,7 @@ verbose = ARGS.VERBOSE
 HistAddress = ARGS.LOCATION
 
 
-Samples = ['events_Dark_Photon_cT0.root', 'events_Dark_Photon_cT10.root','events_Dark_Photon_cT100.root','events_Dark_Photon_cT5000.root','events_Dark_Photon_cT10000.root','events_NeutrinoGun_PU200.root']
+Samples = ['events_Dark_Photon_cT0.root', 'events_Dark_Photon_cT10.root','events_Dark_Photon_cT100.root','events_Dark_Photon_cT5000.root','events_Dark_Photon_cT10000.root']#,'events_NeutrinoGun_PU200.root']
 SamplesName = ['cT0','cT10','cT100','cT5000','cT10000','NeutrinoGun_PU200']
 SamplesNameLatex = ['cT0', 'cT10', 'cT100', 'cT5000', 'cT10000','NeutrinoGun\_PU200']
 Totals = [99998, 99998, 99998, 77883, 77883, 872538]

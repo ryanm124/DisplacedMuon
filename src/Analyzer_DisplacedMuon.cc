@@ -32,6 +32,146 @@ bool ComparePtTrack(Track_Parameters *a, Track_Parameters *b) { return a->pt > b
 bool CompareZ0Track(Track_Parameters *a, Track_Parameters *b) { return a->z0 > b->z0; }
 bool CompareD0Track(Track_Parameters *a, Track_Parameters *b) { return a->d0 > b->d0; }
 
+Double_t dist(Double_t x1, Double_t y1 , Double_t x2, Double_t y2){
+   return (TMath::Sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2)));
+}
+
+Double_t dist_Vertex(Double_t x_vtx, Double_t y_vtx, Track_Parameters *a){
+   float R = dist(x_vtx,y_vtx,a->x0,a->y0);
+   return (fabs(R-(a->rho)));
+}
+
+void Vertex(Track_Parameters *a, Track_Parameters*b, Double_t &x_vtx, Double_t &y_vtx){
+   float x1 = a->x0; //   Centers of the circles
+   float y1 = a->y0; // 
+   float x2 = b->x0; // 
+   float y2 = b->y0; // 
+   float R1 = a->rho;   // Radii of the circles
+   float R2 = b->rho;
+   float del1, del2, x_11, x_12, x_21, x_22, y_11, y_12, y_21, y_22;
+   float R = dist(x1,y1,x2,y2); // Distance between centers
+   float centerdx = x1 - x2;
+   float centerdy = y1 - y2;
+
+   if((R>=(R1-R2)) && (R<=(R1+R2))){
+      // Circles Intersect
+      float R4 = R*R*R*R;
+      float A = (R1*R1 - R2*R2) / (2 * R*R);
+      float r2r2 = (R1*R1 - R2*R2);
+      float C = TMath::Sqrt(2 * (R1*R1 + R2*R2) / (R*R) - (r2r2 * r2r2) / R4 - 1);
+      
+      float fx = (x1+x2) / 2 + A * (x2 - x1);
+      float gx = C * (y2 - y1) / 2;
+      float ix1 = fx + gx;
+      float ix2 = fx - gx;
+
+      float fy = (y1+y2) / 2 + A * (y2 - y1);
+      float gy = C * (x1 - x2) / 2;
+      float iy1 = fy + gy;
+      float iy2 = fy - gy;
+
+      if(gx==0 && gy==0){ // Only 1 intersection
+         x_vtx = ix1;
+         y_vtx = iy1;
+         // cout<<"----1 intersection ----";
+         return;
+      }
+      // Finding minimum z distance to decide between the 2 intersection vertex
+      float z11 = a->phi_T(ix1,iy1);
+      float z12 = a->phi_T(ix2,iy2);
+      float z21 = b->phi_T(ix1,iy1);
+      float z22 = b->phi_T(ix2,iy2);
+
+      // cout<<Form("z11 = %5.2f    |   z12 = %5.2f    |  z21 = %5.2f    |   z22 = %5.2f    |   z22 = %5.2f",z11,z12,z21,z22)<<endl;//<<" dxy = "<<tp_dxy->at(it)<<"\t \t dist = "<<TMath::Sqrt((*selectedTPs)[j]->x*(*selectedTPs)[j]->x + (*selectedTPs)[j]->y*(*selectedTPs)[j]->y)<<" \t eta = "<<tp_eta->at(it)<<" \t phi = "<<tp_phi->at(it)<<" \t pt = "<<tp_pt->at(it)<<endl;
+
+
+      float delz1 = fabs(z11 - z21);
+      float delz2 = fabs(z12 - z22);
+      if (delz1 <= delz2){
+         x_vtx = ix1;
+         y_vtx = iy1;
+         // cout<<"----2 intersection ----";
+         return;         
+      }
+      else{
+         x_vtx = ix2;
+         y_vtx = iy2;
+         return;
+      }
+
+   }
+   else if(R==0){
+      // Circles with Same center. 
+      // x_vtx = -999.0;//a->x();  // Considering First track coordinates as vertex
+      // y_vtx = -999.0;//a->y();
+      return;
+   }
+   /*
+   else{
+      x_vtx = -9999.0;
+      y_vtx = -9999.0;
+      return;
+   }
+   */
+   // Circles don't intersect. 
+
+   if(x1==x2){
+      if(y1==y2){
+         // Circles with Same center. 
+         //x_vtx = a->x();  // Considering First track coordinates as vertex
+         // y_vtx = a->y();
+         return;
+      }
+      x_11 = x1;
+      x_12 = x1;
+
+      x_21 = x2;
+      x_22 = x2;
+
+      y_11 = y1 + R1;
+      y_12 = y1 - R1;
+
+      y_21 = y2 + R2;
+      y_22 = y2 - R2;
+
+   }
+   else{
+
+      del1 = R1 / (TMath::Sqrt(1+((y1-y2)*(y1-y2)/((x1-x2)*(x1-x2)))));
+      del2 = R2 / (TMath::Sqrt(1+((y1-y2)*(y1-y2)/((x1-x2)*(x1-x2)))));
+
+      x_11 = x1 + del1;
+      x_12 = x1 - del1;
+
+      x_21 = x2 + del2;
+      x_22 = x2 - del2;
+
+      y_11 = y1 + (x_11-x1) * ((y1-y2)/(x1-x2));
+      y_12 = y1 + (x_12-x1) * ((y1-y2)/(x1-x2));
+
+      y_21 = y2 + (x_21-x2) * ((y1-y2)/(x1-x2));
+      y_22 = y2 + (x_22-x2) * ((y1-y2)/(x1-x2));
+   }
+
+   if(dist(x_11,y_11,x2,y2) <= dist(x_12,y_12,x2,y2)){
+      x_vtx = x_11;
+      y_vtx = y_11;
+   }
+   else{
+      x_vtx = x_12;
+      y_vtx = y_12;
+   }
+
+   if(dist(x_21,y_21,x1,y1) <= dist(x_22,y_22,x1,y1)){
+      x_vtx = (x_vtx + x_21)/2;
+      y_vtx = (y_vtx + y_21)/2;
+   }
+   else{
+      x_vtx = (x_vtx + x_22)/2;
+      y_vtx = (y_vtx + y_22)/2;
+   }
+}
+
 Double_t deltaPhi(Double_t phi1, Double_t phi2)
 {
    Double_t dPhi = phi1 - phi2;
@@ -91,7 +231,7 @@ void Analyzer_DisplacedMuon::Loop(TString type,
 
    SetPlotStyle();
 
-   float TP_minPt = 4.0;
+   float TP_minPt = 2.0;
    float TP_maxPt = 10000.0;
    float TP_maxEta = 2.4;
    int TP_select_pdgid = 0;
@@ -102,57 +242,83 @@ void Analyzer_DisplacedMuon::Loop(TString type,
 
    std::vector<TString> regions{"tpgeq2", "tpgeq2osMu"};
    std::vector<TString> vars{"ntp","nMu",
-                             "tp_pt", "tp_eta", "tp_phi", "tp_z0", "tp_d0", "tp_charge", "tp_pdgid",
-                             "tp1pt", "tp1eta", "tp1phi", "tp1z0", "tp1d0", "tp1charge", "tp1pdgid",
-                             "tp2pt", "tp2eta", "tp2phi", "tp2z0", "tp2d0", "tp2charge", "tp2pdgid",
+                             "tp_pt", "tp_eta", "tp_phi", "tp_z0", "tp_d0", "tp_charge", "tp_pdgid","tp_dist",
+                             "tp1pt", "tp1eta", "tp1phi", "tp1z0", "tp1d0", "tp1charge", "tp1pdgid","tp1_dist",
+                             "tp2pt", "tp2eta", "tp2phi", "tp2z0", "tp2d0", "tp2charge", "tp2pdgid","tp2_dist",
                              "tp_tp_eta", "tp_tp_phi", "tp_tp_z0", "tp_tp_d0", "tp_tp_dR",
-                             "tpz1pt", "tpz1eta", "tpz1phi", "tpz1z0", "tpz1d0", "tpz1charge", "tpz1pdgid",
-                             "tpz2pt", "tpz2eta", "tpz2phi", "tpz2z0", "tpz2d0", "tpz2charge", "tpz2pdgid",
-                             "z0_min_delta_eta", "z0_min_delta_phi", "z0_min_delta_z0", "z0_min_delta_d0", "z0_min_delta_dR",
-                             "tpd1pt", "tpd1eta", "tpd1phi", "tpd1z0", "tpd1d0", "tpd1charge", "tpd1pdgid",
-                             "tpd2pt", "tpd2eta", "tpd2phi", "tpd2z0", "tpd2d0", "tpd2charge", "tpd2pdgid",
-                             "d0_min_delta_eta", "d0_min_delta_phi", "d0_min_delta_z0", "d0_min_delta_d0", "d0_min_delta_dR"};
+                             "tpz1pt", "tpz1eta", "tpz1phi", "tpz1z0", "tpz1d0", "tpz1charge", "tpz1pdgid","tpz1dist",
+                             "tpz2pt", "tpz2eta", "tpz2phi", "tpz2z0", "tpz2d0", "tpz2charge", "tpz2pdgid","tpz2dist",
+                             "tp_z0_min_delta_eta", "tp_z0_min_delta_phi", "tp_z0_min_delta_z0", "tp_z0_min_delta_d0", "tp_z0_min_delta_dR",
+                             "tpd1pt", "tpd1eta", "tpd1phi", "tpd1z0", "tpd1d0", "tpd1charge", "tpd1pdgid","tpd1dist",
+                             "tpd2pt", "tpd2eta", "tpd2phi", "tpd2z0", "tpd2d0", "tpd2charge", "tpd2pdgid","tpd2dist",
+                             "tp_d0_min_delta_eta", "tp_d0_min_delta_phi", "tp_d0_min_delta_z0", "tp_d0_min_delta_d0", "tp_d0_min_delta_dR",
+                             "muz1pt", "muz1eta", "muz1phi", "muz1z0", "muz1d0", "muz1charge", "muz1pdgid","muz1dist",
+                             "muz2pt", "muz2eta", "muz2phi", "muz2z0", "muz2d0", "muz2charge", "muz2pdgid","muz2dist",
+                             "mu_z0_min_delta_eta", "mu_z0_min_delta_phi", "mu_z0_min_delta_z0", "mu_z0_min_delta_d0", "mu_z0_min_delta_dR",
+                             "mud1pt", "mud1eta", "mud1phi", "mud1z0", "mud1d0", "mud1charge", "mud1pdgid","mud1dist",
+                             "mud2pt", "mud2eta", "mud2phi", "mud2z0", "mud2d0", "mud2charge", "mud2pdgid","mud2dist",
+                             "mu_d0_min_delta_eta", "mu_d0_min_delta_phi", "mu_d0_min_delta_z0", "mu_d0_min_delta_d0", "mu_d0_min_delta_dR"};
    std::vector<int> nbins{100, 20,
-                          20, 100, 100, 100, 100, 100, 400,
-                          100, 100, 100, 100, 100, 100, 400,
-                          100, 100, 100, 100, 100, 100, 400,
+                          20, 100, 100, 100, 100, 100, 400, 100,
+                          100, 100, 100, 100, 100, 100, 400, 100,
+                          100, 100, 100, 100, 100, 100, 400, 100,
                           100, 100, 100, 100, 100,
-                          100, 100, 100, 100, 100, 100, 400,
-                          100, 100, 100, 100, 100, 100, 400,
+                          100, 100, 100, 100, 100, 100, 400, 100,
+                          100, 100, 100, 100, 100, 100, 400, 100,
                           100, 100, 100, 100, 100,
-                          100, 100, 100, 100, 100, 100, 400,
-                          100, 100, 100, 100, 100, 100, 400,
+                          100, 100, 100, 100, 100, 100, 400, 100,
+                          100, 100, 100, 100, 100, 100, 400, 100,
+                          100, 100, 100, 100, 100,
+                          100, 100, 100, 100, 100, 100, 400, 100,
+                          100, 100, 100, 100, 100, 100, 400, 100,
+                          100, 100, 100, 100, 100,
+                          100, 100, 100, 100, 100, 100, 400, 100,
+                          100, 100, 100, 100, 100, 100, 400, 100,
                           100, 100, 100, 100, 100};
    std::vector<float> lowEdge{0, 0,
-                              0, -2.4, -3.2, -20, 0, -2, 0,
-                              0, -2.4, -3.2, -20, 0, -2, 0,
-                              0, -2.4, -3.2, -20, 0, -2, 0,
+                              0, -2.4, -3.2, -20, -1, -2, 0, 0,
+                              0, -2.4, -3.2, -20, -1, -2, 0, 0,
+                              0, -2.4, -3.2, -20, -1, -2, 0, 0,
                               0, 0, 0, 0, 0,
-                              0, -2.4, -3.2, -20, 0, -2, 0,
-                              0, -2.4, -3.2, -20, 0, -2, 0,
+                              0, -2.4, -3.2, -20, -1, -2, 0, 0,
+                              0, -2.4, -3.2, -20, -1, -2, 0, 0,
                               0, 0, 0, 0, 0,
-                              0, -2.4, -3.2, -20, 0, -2, 0,
-                              0, -2.4, -3.2, -20, 0, -2, 0,
+                              0, -2.4, -3.2, -20, -1, -2, 0, 0,
+                              0, -2.4, -3.2, -20, -1, -2, 0, 0,
+                              0, 0, 0, 0, 0,
+                              0, -2.4, -3.2, -20, -1, -2, 0, 0,
+                              0, -2.4, -3.2, -20, -1, -2, 0, 0,
+                              0, 0, 0, 0, 0,
+                              0, -2.4, -3.2, -20, -1, -2, 0, 0,
+                              0, -2.4, -3.2, -20, -1, -2, 0, 0,
                               0, 0, 0, 0, 0};
    std::vector<float> highEdge{100, 20,
-                               20,  2.4, 3.2, 20, 5, 2, 400,
-                               100, 2.4, 3.2, 20, 5, 2, 400,
-                               100, 2.4, 3.2, 20, 5, 2, 400,
-                               5, 4, 0.5, 1.0, 5,
-                               100, 2.4, 3.2, 20, 5, 2, 400,
-                               100, 2.4, 3.2, 20, 5, 2, 400,
-                               5, 4, 0.5, 1.0, 5,
-                               100, 2.4, 3.2, 20, 5, 2, 400,
-                               100, 2.4, 3.2, 20, 5, 2, 400,
-                               5, 4, 0.5, 1.0, 5};
+                               20,  2.4, 3.2, 20, 1, 2, 400, 5,
+                               100, 2.4, 3.2, 20, 1, 2, 400, 5,
+                               100, 2.4, 3.2, 20, 1, 2, 400, 5,
+                               5, 4, 0.5, 0.5, 5,
+                               100, 2.4, 3.2, 20, 1, 2, 400, 5,
+                               100, 2.4, 3.2, 20, 1, 2, 400, 5,
+                               5, 4, 0.5, 0.5, 5,
+                               100, 2.4, 3.2, 20, 1, 2, 400, 5,
+                               100, 2.4, 3.2, 20, 1, 2, 400, 5,
+                               5, 4, 0.5, 0.5, 5,
+                               100, 2.4, 3.2, 20, 1, 2, 400, 5,
+                               100, 2.4, 3.2, 20, 1, 2, 400, 5,
+                               5, 4, 0.5, 0.5, 5,
+                               100, 2.4, 3.2, 20, 1, 2, 400, 5,
+                               100, 2.4, 3.2, 20, 1, 2, 400, 5,
+                               5, 4, 0.5, 0.5, 5};
 
    typedef vector<TH1F *> Dim1;
    typedef vector<Dim1> Dim2;
    typedef vector<Dim2> Dim3;
    typedef vector<Dim3> Dim4;
    TH2F *h_d0_Mu_n_Mu_p = new TH2F("d0_Mu_n_Mu_p","d0_Mu_n_Mu_p",50,-5,5,50,-5,5);
-   TH2F *h_z0_Mu_n_Mu_p = new TH2F("z0_Mu_n_Mu_p","z0_Mu_n_Mu_p",200,-20,20,200,-20,20);
-   Dim2 Hists(regions.size(), Dim1(vars.size()));
+   TH2F *h_z0_Mu_n_Mu_p = new TH2F("z0_Mu_n_Mu_p","z0_Mu_n_Mu_p",100,-20,20,100,-20,20);
+   TH2F *h_displaced_vertex_x = new TH2F("displaced_vertex_x","displaced_vertex_x",50,-5,5,50,-5,5);
+   TH2F *h_displaced_vertex_y = new TH2F("displaced_vertex_y","displaced_vertex_y",50,-5,5,50,-5,5);
+Dim2 Hists(regions.size(), Dim1(vars.size()));
    std::stringstream name;
    TH1F *h_test;
    Float_t **Output_vars = new Float_t *[regions.size()];
@@ -176,7 +342,8 @@ void Analyzer_DisplacedMuon::Loop(TString type,
    int nAccept = 0;
    std::vector<Track_Parameters *> *selectedTracks;
    std::vector<Track_Parameters *> *selectedTPs;
-   // std::vector<Track_Parameters *> *selectedTPs_zmin;
+   std::vector<Track_Parameters *> *selectedTPs_zmin;
+   std::vector<Track_Parameters *> *selectedTPs_dmin;
    std::vector<Track_Parameters *> *selectedMu;
    std::vector<Track_Parameters *> *selectedMu_zmin;
    std::vector<Track_Parameters *> *selectedMu_dmin;
@@ -225,6 +392,8 @@ void Analyzer_DisplacedMuon::Loop(TString type,
       // selectedTracks_dmin = new std::vector<Track_Parameters *>();
 
       selectedTPs = new std::vector<Track_Parameters *>();
+      selectedTPs_zmin = new std::vector<Track_Parameters *>();
+      selectedTPs_dmin = new std::vector<Track_Parameters *>();
       selectedMu = new std::vector<Track_Parameters *>();
       selectedMu_zmin = new std::vector<Track_Parameters *>();
       selectedMu_dmin = new std::vector<Track_Parameters *>();
@@ -269,18 +438,28 @@ void Analyzer_DisplacedMuon::Loop(TString type,
          float rp = ((1/(2*K)) - trk_d0->at(it))/(-trk_rinv->at(it));
          float dxy = sqrt(rp*rp + (trk_d0->at(it)/K) - 1/(4*K*K));
 
-         selectedTracks->push_back(new Track_Parameters(trk_pt->at(it), dxy, trk_z0->at(it), trk_eta->at(it), trk_phi->at(it), -trk_rinv->at(it), it, -99999));
+         selectedTracks->push_back(new Track_Parameters(trk_pt->at(it), trk_d0->at(it), trk_z0->at(it), trk_eta->at(it), trk_phi->at(it), -trk_rinv->at(it), it, -99999));
+         // (*selectedTracks)[selectedTracks->size()-1]->Propagate_Transverse(1.0/trk_rinv->at(it));
          // selectedTPs->push_back(new Track_Parameters(trk_pt->at(it), trk_d0->at(it), trk_z0->at(it), trk_eta->at(it), trk_phi->at(it), -trk_rinv->at(it), it, -99999));
       }
 
       // ----------------------------------------------------------------------------------------------------------------
       // tracking particle loop
+      TH1F htmp_tp_z("htmp_tp_z", ";z (cm); Tracks", 601 , -30, 30);
+      TH1F htmp_tp_d("htmp_tp_d", ";d (cm); Tracks", 401 , -20, 20);
+
+      TH1F htmp_tp_x("htmp_tp_x", ";x (cm); Tracks", 401 , -20, 20);
+      TH1F htmp_tp_y("htmp_tp_y", ";y (cm); Tracks", 401 , -20, 20);
+
+      // cout<<htmp_tp_d.GetNbinsX()<<endl;
 
       for (int it = 0; it < (int)tp_pt->size(); it++)
       {
-         if (std::fabs(tp_dxy->at(it)) > TP_maxD0)
+         float tmp_d0 = tp_d0->at(it);
+         float tmp_z0 = tp_z0->at(it);
+         if (std::fabs(tmp_d0) > TP_maxD0)
             continue;
-         if (std::fabs(tp_dxy->at(it)) < TP_minD0)
+         if (std::fabs(tmp_d0) < TP_minD0)
             continue;
          if (tp_pt->at(it) < TP_minPt)
             continue;
@@ -288,9 +467,9 @@ void Analyzer_DisplacedMuon::Loop(TString type,
             continue;
          if (std::fabs(tp_eta->at(it)) > TP_maxEta)
             continue;
-         if (TMath::IsNaN(tp_dxy->at(it)))
+         if (TMath::IsNaN(tmp_d0))
             continue;
-         if (TMath::IsNaN(tp_z0_prod->at(it)))
+         if (TMath::IsNaN(tmp_z0))
             continue;
 
          if (TP_select_injet > 0)
@@ -309,8 +488,8 @@ void Analyzer_DisplacedMuon::Loop(TString type,
                continue;
          }
 
-         if(abs(tp_charge->at(it))!=1)
-            continue;
+         // if(fabs(tp_d0->at(it))<0.5)
+         //    continue;
 
          float K = 0.01*0.5696*(tp_charge->at(it))/tp_pt->at(it);
          float rp = ((1/(2*K)) - tp_d0->at(it))/(tp_charge->at(it));
@@ -318,7 +497,17 @@ void Analyzer_DisplacedMuon::Loop(TString type,
          // if(fabs(dxy-tp_dxy->at(it))>0.1)
             // cout<<i<<"\t dxy = "<<dxy<<"  \t tp_dxy = "<<tp_dxy->at(it)<<endl;
          // cout << i << "\t" << tp_z0->at(it) << "\t" << tp_d0->at(it) << "\t" << tp_pt->at(it) << "\t" << tp_pdgid->at(it)<<"\n";
-         selectedTPs->push_back(new Track_Parameters(tp_pt->at(it), dxy, tp_z0_prod->at(it), tp_eta->at(it), tp_phi->at(it), tp_charge->at(it), it, tp_pdgid->at(it)));
+         selectedTPs->push_back(new Track_Parameters(tp_pt->at(it), tmp_d0, tmp_z0, tp_eta->at(it), tp_phi->at(it), tp_charge->at(it), it, tp_pdgid->at(it)));
+         int j = selectedTPs->size()-1;
+         // (*selectedTPs)[j]->x0 = tp_x->at(it);
+         // (*selectedTPs)[j]->y0 = tp_y->at(it);
+         // (*selectedTPs)[j]->Propagate_Transverse();
+         // cout<<Form("phi_T =   %7.2f     |  ",
+         // (*selectedTPs)[j]->Propagate_Transverse();
+         // if(fabs(tp_pdgid->at(it))==13)
+         // cout<<Form("dxy_calc = %5.2f    |   dxy = %5.2f    |  dist = %5.2f    |   eta = %5.2f    |   phi = %5.2f    |   pt = %5.2f",dxy,tp_dxy->at(it),TMath::Sqrt((*selectedTPs)[j]->x*(*selectedTPs)[j]->x + (*selectedTPs)[j]->y*(*selectedTPs)[j]->y),tp_eta->at(it),tp_phi->at(it),tp_pt->at(it))<<endl;//<<" dxy = "<<tp_dxy->at(it)<<"\t \t dist = "<<TMath::Sqrt((*selectedTPs)[j]->x*(*selectedTPs)[j]->x + (*selectedTPs)[j]->y*(*selectedTPs)[j]->y)<<" \t eta = "<<tp_eta->at(it)<<" \t phi = "<<tp_phi->at(it)<<" \t pt = "<<tp_pt->at(it)<<endl;
+         htmp_tp_z.Fill(tmp_z0,tp_pt->at(it));
+         htmp_tp_d.Fill(tmp_d0,tp_pt->at(it));
       } // end tp loop
 
       // cout<<"End of tracking particle loop \n";
@@ -342,7 +531,73 @@ void Analyzer_DisplacedMuon::Loop(TString type,
 // --------------------------------------------------------------------------------------------
 //                SELECTION CRITERIA -  Atleast 2 tracking particles 
 // --------------------------------------------------------------------------------------------
-      // if (!(selectedTPs->size() >= 2)) continue;
+      if (!(selectedTPs->size() >= 2)) continue;
+
+   //* Primary Vertex Finding
+      float zvtx_sliding = -999;
+      float sigma_max = -999;
+      int imax = -999;
+      std::vector<int> found_z;
+      std::vector<float> z_vertex;
+      found_z.reserve(1);
+      z_vertex.reserve(1);
+      for (int ivtx = 0; ivtx < 1; ivtx++) {
+         zvtx_sliding = -999;
+         sigma_max = -999;
+         imax = -999;
+         for (int i = 2; i <= htmp_tp_z.GetNbinsX() - 1; i++) {
+            float a0 = htmp_tp_z.GetBinContent(i - 1);
+            float a1 = htmp_tp_z.GetBinContent(i);
+            float a2 = htmp_tp_z.GetBinContent(i + 1);
+            float sigma = a0 + a1 + a2;
+            if ((sigma > sigma_max) && (find(found_z.begin(), found_z.end(), i) == found_z.end())) {
+            sigma_max = sigma;
+            imax = i;
+            float z0 = htmp_tp_z.GetBinCenter(i - 1);
+            float z1 = htmp_tp_z.GetBinCenter(i);
+            float z2 = htmp_tp_z.GetBinCenter(i + 1);
+            zvtx_sliding = (a0 * z0 + a1 * z1 + a2 * z2) / sigma;
+            }
+         }
+         found_z.push_back(imax);
+         z_vertex.push_back(zvtx_sliding);
+      }
+      // cout<<zvtx_sliding<<"\t";
+
+      sort(selectedTPs->begin(), selectedTPs->end(), ComparePtTrack);
+      Double_t x_dv = (tp_x->at((*selectedTPs)[0]->index));//+tp_x->at((*selectedTPs)[1]->index))/2.0;
+      Double_t y_dv = (tp_y->at((*selectedTPs)[0]->index));//+tp_y->at((*selectedTPs)[1]->index))/2.0;
+      Double_t z_dv = (tp_z->at((*selectedTPs)[0]->index));//+tp_z->at((*selectedTPs)[1]->index))/2.0;
+      // float dist_12 = dist((*selectedTPs)[0]->x, (*selectedTPs)[0]->y,(*selectedTPs)[1]->x, (*selectedTPs)[1]->y);
+
+      if(!(fabs(tp_x->at((*selectedTPs)[0]->index) - tp_x->at((*selectedTPs)[1]->index))<0.01)) continue;
+      Vertex((*selectedTPs)[0],(*selectedTPs)[1],x_dv,y_dv); //(selectedTPs->size())>2?2:1
+      // z_dv = ((*selectedTPs)[0]->z0 + (*selectedTPs)[1]->z0)/2.0;
+      // (*selectedTPs)[0]->Propagate_Transverse();
+      // (*selectedTPs)[1]->Propagate_Transverse();
+
+      // if(dist(x_dv,y_dv,tp_x->at((*selectedTPs)[0]->index),tp_y->at((*selectedTPs)[0]->index))>0.5) continue;
+
+      // if(fabs(tp_x->at((*selectedTPs)[0]->index) - x_dv)>0.1)
+      //    cout<<Form("x_dv = %5.2f    |   y_dv = %5.2f    |  x[0] = %5.2f    |   y[0] = %5.2f    |   x[1] = %5.2f    |   y[1] = %5.2f    |   z[0] = -    |   z0[0] = -",x_dv,y_dv,tp_x->at((*selectedTPs)[0]->index),tp_y->at((*selectedTPs)[0]->index),tp_x->at((*selectedTPs)[1]->index),tp_y->at((*selectedTPs)[1]->index))<<endl;;//,(*selectedTPs)[0]->z((*selectedTPs)[0]->phi_T(tp_x->at((*selectedTPs)[0]->index))),(*selectedTPs)[0]->z0)<<endl;//<<" dxy = "<<tp_dxy->at(it)<<"\t \t dist = "<<TMath::Sqrt((*selectedTPs)[j]->x*(*selectedTPs)[j]->x + (*selectedTPs)[j]->y*(*selectedTPs)[j]->y)<<" \t eta = "<<tp_eta->at(it)<<" \t phi = "<<tp_phi->at(it)<<" \t pt = "<<tp_pt->at(it)<<endl;
+      // cout <<x_dv<<"\t"<<y_dv<<"   Adding to vectors \n";
+      for (int j = 0; j < selectedTPs->size(); j++){
+         (*selectedTPs)[j]->dist_calc(x_dv,y_dv,tp_x->at((*selectedTPs)[j]->index),tp_y->at((*selectedTPs)[j]->index));
+         // cout<<"Check 1\n";
+         // if((fabs((*selectedTPs)[j]->z0 - z_dv)) < 1.0){
+            selectedTPs_zmin->push_back(new Track_Parameters((*selectedTPs)[j]->pt, (*selectedTPs)[j]->d0, (*selectedTPs)[j]->z0, (*selectedTPs)[j]->eta, (*selectedTPs)[j]->phi, (*selectedTPs)[j]->charge, (*selectedTPs)[j]->index, (*selectedTPs)[j]->pdgid));
+            (*selectedTPs_zmin)[selectedTPs_zmin->size()-1]->dist_calc(x_dv,y_dv,tp_x->at((*selectedTPs_zmin)[selectedTPs_zmin->size()-1]->index),tp_y->at((*selectedTPs_zmin)[selectedTPs_zmin->size()-1]->index));
+            (*selectedTPs_zmin)[selectedTPs_zmin->size()-1]->dxy = dist_Vertex(x_dv, y_dv,(*selectedTPs_zmin)[selectedTPs_zmin->size()-1]);
+         // }
+         if(dist_Vertex(x_dv, y_dv,(*selectedTPs)[j]) < 0.5){
+            // if((fabs(tp_z->at((*selectedTPs)[j]->index) - z_dv)) < 0.1){
+            selectedTPs_dmin->push_back(new Track_Parameters((*selectedTPs)[j]->pt, (*selectedTPs)[j]->d0, (*selectedTPs)[j]->z0, (*selectedTPs)[j]->eta, (*selectedTPs)[j]->phi, (*selectedTPs)[j]->charge, (*selectedTPs)[j]->index, (*selectedTPs)[j]->pdgid));
+            (*selectedTPs_dmin)[selectedTPs_dmin->size()-1]->dist_calc(x_dv,y_dv,tp_x->at((*selectedTPs_dmin)[selectedTPs_dmin->size()-1]->index),tp_y->at((*selectedTPs_dmin)[selectedTPs_dmin->size()-1]->index));
+            (*selectedTPs_dmin)[selectedTPs_dmin->size()-1]->dxy = dist_Vertex(x_dv, y_dv,(*selectedTPs_dmin)[selectedTPs_dmin->size()-1]);
+         }
+         // }
+
+      }
 
       // Counters 
       // cout << i << "Start of Counters \n";
@@ -442,6 +697,8 @@ void Analyzer_DisplacedMuon::Loop(TString type,
 
 
       sort(selectedTPs->begin(), selectedTPs->end(), ComparePtTrack);
+      sort(selectedTPs_zmin->begin(), selectedTPs_zmin->end(), ComparePtTrack);
+      sort(selectedTPs_dmin->begin(), selectedTPs_dmin->end(), ComparePtTrack);
       TP_minz0_nindex = -1;
       TP_mind0_nindex = -1;
       TP_minz0_pindex = -1;
@@ -449,49 +706,84 @@ void Analyzer_DisplacedMuon::Loop(TString type,
 
       // cout << i << "\t" << selectedTPs->size() << "\t" << (*selectedTPs)[0]->z0 << "\t" << (*selectedTPs)[0]->d0 << "\t" << (*selectedTPs)[0]->pt << "\t";
       int check = 0;
-      std::vector<int> mu_p_index;
-      std::vector<int> mu_n_index;
-      for (int j = 0; j < selectedTPs->size(); j++){
-         if(abs((*selectedTPs)[j]->pdgid)==13){
-            if((*selectedTPs)[j]->charge==1) {
-               mu_p_index.push_back(selectedMu->size());
+      std::vector<int> mu_zmin_p_index;
+      std::vector<int> mu_zmin_n_index;
+      std::vector<int> mu_dmin_p_index;
+      std::vector<int> mu_dmin_n_index;
+      for (int j = 0; j < selectedTPs_zmin->size(); j++){
+         if(abs((*selectedTPs_zmin)[j]->pdgid)==13){
+            if((*selectedTPs_zmin)[j]->charge==1) {
+               mu_zmin_p_index.push_back(selectedMu_zmin->size());
             }
             else
             {
-               mu_n_index.push_back(selectedMu->size());
+               mu_zmin_n_index.push_back(selectedMu_zmin->size());
             }
-            selectedMu->push_back(new Track_Parameters((*selectedTPs)[j]->pt, (*selectedTPs)[j]->d0, (*selectedTPs)[j]->z0, (*selectedTPs)[j]->eta, (*selectedTPs)[j]->phi, (*selectedTPs)[j]->charge, j, (*selectedTPs)[j]->pdgid));
-            selectedMu_dmin->push_back(new Track_Parameters((*selectedTPs)[j]->pt, (*selectedTPs)[j]->d0, (*selectedTPs)[j]->z0, (*selectedTPs)[j]->eta, (*selectedTPs)[j]->phi, (*selectedTPs)[j]->charge, j, (*selectedTPs)[j]->pdgid));
-            selectedMu_zmin->push_back(new Track_Parameters((*selectedTPs)[j]->pt, (*selectedTPs)[j]->d0, (*selectedTPs)[j]->z0, (*selectedTPs)[j]->eta, (*selectedTPs)[j]->phi, (*selectedTPs)[j]->charge, j, (*selectedTPs)[j]->pdgid));
+            selectedMu->push_back(new Track_Parameters((*selectedTPs_zmin)[j]->pt, (*selectedTPs_zmin)[j]->d0, (*selectedTPs_zmin)[j]->z0, (*selectedTPs_zmin)[j]->eta, (*selectedTPs_zmin)[j]->phi, (*selectedTPs_zmin)[j]->charge, (*selectedTPs_zmin)[j]->index, (*selectedTPs_zmin)[j]->pdgid));
+            (*selectedMu)[selectedMu->size()-1]->dist_calc(x_dv,y_dv,tp_x->at((*selectedMu)[selectedMu->size()-1]->index),tp_y->at((*selectedMu)[selectedMu->size()-1]->index));
+            (*selectedMu)[selectedMu->size()-1]->dxy = dist_Vertex(x_dv, y_dv,(*selectedMu)[selectedMu->size()-1]);
+            // selectedMu_dmin->push_back(new Track_Parameters((*selectedTPs_zmin)[j]->pt, (*selectedTPs_zmin)[j]->d0, (*selectedTPs_zmin)[j]->z0, (*selectedTPs_zmin)[j]->eta, (*selectedTPs_zmin)[j]->phi, (*selectedTPs_zmin)[j]->charge, j, (*selectedTPs_zmin)[j]->pdgid));
+            selectedMu_zmin->push_back(new Track_Parameters((*selectedTPs_zmin)[j]->pt, (*selectedTPs_zmin)[j]->d0, (*selectedTPs_zmin)[j]->z0, (*selectedTPs_zmin)[j]->eta, (*selectedTPs_zmin)[j]->phi, (*selectedTPs_zmin)[j]->charge, (*selectedTPs_zmin)[j]->index, (*selectedTPs_zmin)[j]->pdgid));
+            (*selectedMu_zmin)[selectedMu_zmin->size()-1]->dist_calc(x_dv,y_dv,tp_x->at((*selectedMu_zmin)[selectedMu_zmin->size()-1]->index),tp_y->at((*selectedMu_zmin)[selectedMu_zmin->size()-1]->index));
+            (*selectedMu_zmin)[selectedMu_zmin->size()-1]->dxy = dist_Vertex(x_dv, y_dv,(*selectedMu_zmin)[selectedMu_zmin->size()-1]);
+         }
+      }
+      for (int j = 0; j < selectedTPs_dmin->size(); j++){
+         if(abs((*selectedTPs_dmin)[j]->pdgid)==13){
+            if((*selectedTPs_dmin)[j]->charge==1) {
+               mu_dmin_p_index.push_back(selectedMu_dmin->size());
+            }
+            else
+            {
+               mu_dmin_n_index.push_back(selectedMu_dmin->size());
+            }
+            selectedMu->push_back(new Track_Parameters((*selectedTPs_dmin)[j]->pt, (*selectedTPs_dmin)[j]->d0, (*selectedTPs_dmin)[j]->z0, (*selectedTPs_dmin)[j]->eta, (*selectedTPs_dmin)[j]->phi, (*selectedTPs_dmin)[j]->charge, (*selectedTPs_dmin)[j]->index, (*selectedTPs_dmin)[j]->pdgid));
+            (*selectedMu)[selectedMu->size()-1]->dist_calc(x_dv,y_dv,tp_x->at((*selectedMu)[selectedMu->size()-1]->index),tp_y->at((*selectedMu)[selectedMu->size()-1]->index));
+            (*selectedMu)[selectedMu->size()-1]->dxy = dist_Vertex(x_dv, y_dv,(*selectedMu)[selectedMu->size()-1]);
+            selectedMu_dmin->push_back(new Track_Parameters((*selectedTPs_dmin)[j]->pt, (*selectedTPs_dmin)[j]->d0, (*selectedTPs_dmin)[j]->z0, (*selectedTPs_dmin)[j]->eta, (*selectedTPs_dmin)[j]->phi, (*selectedTPs_dmin)[j]->charge, (*selectedTPs_dmin)[j]->index, (*selectedTPs_dmin)[j]->pdgid));
+            (*selectedMu_dmin)[selectedMu_dmin->size()-1]->dist_calc(x_dv,y_dv,tp_x->at((*selectedMu_dmin)[selectedMu_dmin->size()-1]->index),tp_y->at((*selectedMu_dmin)[selectedMu_dmin->size()-1]->index));
+            (*selectedMu_dmin)[selectedMu_dmin->size()-1]->dxy = dist_Vertex(x_dv, y_dv,(*selectedMu_dmin)[selectedMu_dmin->size()-1]);
+            // selectedMu_zmin->push_back(new Track_Parameters((*selectedTPs_dmin)[j]->pt, (*selectedTPs_dmin)[j]->d0, (*selectedTPs_dmin)[j]->z0, (*selectedTPs_dmin)[j]->eta, (*selectedTPs_dmin)[j]->phi, (*selectedTPs_dmin)[j]->charge, j, (*selectedTPs_dmin)[j]->pdgid));
          }
       }
       // cout<<endl<<i;
       // cout << "\tMuon selection \t" << selectedMu->size()<<"\t"<<mu_n_index.size()<<"\t"<<mu_p_index.size()<<"\t";
-      if (selectedMu->size()>=2){
+      if ((selectedMu_zmin->size()>=2) && (selectedMu_dmin->size()>=2)){
          nCount_2mu++;
       }
-      if ((selectedMu->size() >= 2) && (mu_n_index.size() != 0) && (mu_p_index.size() != 0)){
-         nCount_2muOS++;
+      if ((selectedMu_zmin->size() >= 2) && (mu_zmin_n_index.size() != 0) && (mu_zmin_p_index.size() != 0)){
+         // nCount_2muOS++;
+         
          float TP_minz0 = std::numeric_limits<float>::infinity();
-         float TP_mind0 = std::numeric_limits<float>::infinity();
-         for (int j = 0; j < mu_p_index.size(); j++)
+         for (int j = 0; j < mu_zmin_p_index.size(); j++)
          {
-            for (int k = 0; k < mu_n_index.size(); k++)
+            for (int k = 0; k < mu_zmin_n_index.size(); k++)
             {
-               if (fabs((*selectedMu_zmin)[mu_p_index[j]]->z0 - (*selectedMu_zmin)[mu_n_index[k]]->z0) < TP_minz0)
+               if (fabs((*selectedMu_zmin)[mu_zmin_p_index[j]]->z0 - (*selectedMu_zmin)[mu_zmin_n_index[k]]->z0) < TP_minz0)
                {
-                  TP_minz0 = fabs((*selectedMu_zmin)[mu_p_index[j]]->z0 - (*selectedMu_zmin)[mu_n_index[k]]->z0);
+                  TP_minz0 = fabs((*selectedMu_zmin)[mu_zmin_p_index[j]]->z0 - (*selectedMu_zmin)[mu_zmin_n_index[k]]->z0);
                   TP_minz0_pindex = j;
                   TP_minz0_nindex = k;
                }
-               if (fabs((*selectedMu_dmin)[mu_p_index[j]]->d0 - (*selectedMu_dmin)[mu_n_index[k]]->d0) < TP_mind0)
+            }
+         }
+      }
+      if ((selectedMu_dmin->size() >= 2) && (mu_dmin_n_index.size() != 0) && (mu_dmin_p_index.size() != 0)){
+         nCount_2muOS++;
+         float TP_mind0 = std::numeric_limits<float>::infinity();
+         for (int j = 0; j < mu_dmin_p_index.size(); j++)
+         {
+            for (int k = 0; k < mu_dmin_n_index.size(); k++)
+            {
+               if (fabs((*selectedMu_dmin)[mu_dmin_p_index[j]]->d0 - (*selectedMu_dmin)[mu_dmin_n_index[k]]->d0) < TP_mind0)
                {
-                  TP_mind0 = fabs((*selectedMu_dmin)[mu_p_index[j]]->d0 - (*selectedMu_dmin)[mu_n_index[k]]->d0);
+                  TP_mind0 = fabs((*selectedMu_dmin)[mu_dmin_p_index[j]]->d0 - (*selectedMu_dmin)[mu_dmin_n_index[k]]->d0);
                   TP_mind0_pindex = j;
                   TP_mind0_nindex = k;
                }
             }
          }
+      }
 
          // cout << TP_minz0_nindex << "\t" << TP_mind0_nindex<<"\t";
 
@@ -506,7 +798,6 @@ void Analyzer_DisplacedMuon::Loop(TString type,
          std::iter_swap((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]], (*selectedMu_dmin)[0]);
          std::iter_swap((*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]], (*selectedMu_dmin)[1]);
    */
-      }
       /*
       if (selectedMu->size()>=2){
       
@@ -556,7 +847,7 @@ void Analyzer_DisplacedMuon::Loop(TString type,
 
 */
       if (!(selectedTPs->size() >= 2)) continue;
-      // cout<<selectedTPs->size()<<"\t"<<TP_minz0_nindex<<endl;
+      // cout<<selectedTPs_dmin->size()<<"\t"<<selectedTPs_dmin->size()<<endl;
       nAccept++;
          // ---------------------------------------------------------------------------------------------------------
          //Filling up Histograms
@@ -564,6 +855,8 @@ void Analyzer_DisplacedMuon::Loop(TString type,
          // h_d0_Mu_n_Mu_p->Fill((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->d0,(*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->d0);
          
          h_index=0;
+         h_displaced_vertex_x->Fill( (tp_x->at((*selectedTPs)[0]->index)),x_dv);
+         h_displaced_vertex_y->Fill( (tp_y->at((*selectedTPs)[0]->index)),y_dv);
          Hists[0][h_index++]->Fill(selectedTPs->size());
          Hists[0][h_index++]->Fill(selectedMu->size());
          for (int i = 0; i < selectedTPs->size(); i++)
@@ -575,8 +868,9 @@ void Analyzer_DisplacedMuon::Loop(TString type,
             Hists[0][h_index+4]->Fill((*selectedTPs)[i]->d0);
             Hists[0][h_index+5]->Fill((*selectedTPs)[i]->charge);
             Hists[0][h_index+6]->Fill((*selectedTPs)[i]->pdgid);
+            Hists[0][h_index+7]->Fill((*selectedTPs)[i]->dxy);
          }
-         h_index +=7;
+         h_index +=8;
          Hists[0][h_index++]->Fill((*selectedTPs)[0]->pt);
          Hists[0][h_index++]->Fill((*selectedTPs)[0]->eta);
          Hists[0][h_index++]->Fill((*selectedTPs)[0]->phi);
@@ -584,6 +878,7 @@ void Analyzer_DisplacedMuon::Loop(TString type,
          Hists[0][h_index++]->Fill((*selectedTPs)[0]->d0);
          Hists[0][h_index++]->Fill((*selectedTPs)[0]->charge);
          Hists[0][h_index++]->Fill((*selectedTPs)[0]->pdgid);
+         Hists[0][h_index++]->Fill((*selectedTPs)[0]->dxy);
          Hists[0][h_index++]->Fill((*selectedTPs)[1]->pt);
          Hists[0][h_index++]->Fill((*selectedTPs)[1]->eta);
          Hists[0][h_index++]->Fill((*selectedTPs)[1]->phi);
@@ -591,59 +886,112 @@ void Analyzer_DisplacedMuon::Loop(TString type,
          Hists[0][h_index++]->Fill((*selectedTPs)[1]->d0);
          Hists[0][h_index++]->Fill((*selectedTPs)[1]->charge);
          Hists[0][h_index++]->Fill((*selectedTPs)[1]->pdgid);
+         Hists[0][h_index++]->Fill((*selectedTPs)[1]->dxy);
          Hists[0][h_index++]->Fill(fabs((*selectedTPs)[0]->eta - (*selectedTPs)[1]->eta));
          Hists[0][h_index++]->Fill(fabs(deltaPhi((*selectedTPs)[0]->phi,(*selectedTPs)[1]->phi)));
          Hists[0][h_index++]->Fill(fabs((*selectedTPs)[0]->z0 - (*selectedTPs)[1]->z0));
          Hists[0][h_index++]->Fill(fabs((*selectedTPs)[0]->d0 - (*selectedTPs)[1]->d0));
          Hists[0][h_index++]->Fill((deltaR((*selectedTPs)[0]->eta,(*selectedTPs)[0]->phi, (*selectedTPs)[1]->eta,(*selectedTPs)[1]->phi)));
-         if ((selectedMu->size() >= 2) && (mu_n_index.size() != 0) && (mu_p_index.size() != 0)){
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->pt);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->eta);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->phi);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->z0);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->d0);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->charge);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->pdgid);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->pt);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->eta);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->phi);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->z0);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->d0);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->charge);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->pdgid);
-         Hists[0][h_index++]->Fill(fabs((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->eta - (*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->eta));
-         Hists[0][h_index++]->Fill(fabs(deltaPhi((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->phi, (*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->phi)));
-         Hists[0][h_index++]->Fill(fabs((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->z0 - (*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->z0));
-         Hists[0][h_index++]->Fill(fabs((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->d0 - (*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->d0));
-         Hists[0][h_index++]->Fill((deltaR((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->eta, (*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->phi, (*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->eta, (*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->phi)));
-         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->pt);
-         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->eta);
-         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->phi);
-         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->z0);
-         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->d0);
-         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->charge);
-         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->pdgid);
-         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->pt);
-         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->eta);
-         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->phi);
-         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->z0);
-         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->d0);
-         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->charge);
-         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->pdgid);
-         Hists[0][h_index++]->Fill(fabs((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->eta - (*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->eta));
-         Hists[0][h_index++]->Fill(fabs(deltaPhi((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->phi, (*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->phi)));
-         Hists[0][h_index++]->Fill(fabs((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->z0 - (*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->z0));
-         Hists[0][h_index++]->Fill(fabs((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->d0 - (*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->d0));
-         Hists[0][h_index++]->Fill((deltaR((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->eta,(*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->phi, (*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->eta,(*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->phi)));
+
+         if ((selectedTPs_dmin->size() >= 2) && (selectedTPs_zmin->size() >= 2)) {
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->pt);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->eta);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->phi);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->z0);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->d0);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->charge);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->pdgid);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->dxy);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->pt);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->eta);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->phi);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->z0);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->d0);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->charge);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->pdgid);
+         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->dxy);
+         Hists[0][h_index++]->Fill(fabs((*selectedTPs_zmin)[0]->eta - (*selectedTPs_zmin)[1]->eta));
+         Hists[0][h_index++]->Fill(fabs(deltaPhi((*selectedTPs_zmin)[0]->phi, (*selectedTPs_zmin)[1]->phi)));
+         Hists[0][h_index++]->Fill(fabs((*selectedTPs_zmin)[0]->z0 - (*selectedTPs_zmin)[1]->z0));
+         Hists[0][h_index++]->Fill(fabs((*selectedTPs_zmin)[0]->d0 - (*selectedTPs_zmin)[1]->d0));
+         Hists[0][h_index++]->Fill((deltaR((*selectedTPs_zmin)[0]->eta, (*selectedTPs_zmin)[0]->phi, (*selectedTPs_zmin)[1]->eta, (*selectedTPs_zmin)[1]->phi)));
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[0]->pt);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[0]->eta);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[0]->phi);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[0]->z0);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[0]->d0);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[0]->charge);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[0]->pdgid);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[0]->dxy);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[1]->pt);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[1]->eta);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[1]->phi);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[1]->z0);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[1]->d0);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[1]->charge);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[1]->pdgid);
+         Hists[0][h_index++]->Fill((*selectedTPs_dmin)[1]->dxy);
+         Hists[0][h_index++]->Fill(fabs((*selectedTPs_dmin)[0]->eta - (*selectedTPs_dmin)[1]->eta));
+         Hists[0][h_index++]->Fill(fabs(deltaPhi((*selectedTPs_dmin)[0]->phi, (*selectedTPs_dmin)[1]->phi)));
+         Hists[0][h_index++]->Fill(fabs((*selectedTPs_dmin)[0]->z0 - (*selectedTPs_dmin)[1]->z0));
+         Hists[0][h_index++]->Fill(fabs((*selectedTPs_dmin)[0]->d0 - (*selectedTPs_dmin)[1]->d0));
+         Hists[0][h_index++]->Fill((deltaR((*selectedTPs_dmin)[0]->eta,(*selectedTPs_dmin)[0]->phi, (*selectedTPs_dmin)[1]->eta,(*selectedTPs_dmin)[1]->phi)));
+         }
+         // cout<<"TPs_dmin TPs_zmin \t"<<fabs((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->eta - (*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->eta);
+
+         if ((selectedMu_zmin->size() >= 2) && (selectedMu_dmin->size() >= 2) && (mu_zmin_n_index.size() != 0) && (mu_zmin_p_index.size() != 0) && (mu_dmin_n_index.size() != 0) && (mu_dmin_p_index.size() != 0)){
+         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->pt);
+         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->eta);
+         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->phi);
+         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->z0);
+         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->d0);
+         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->charge);
+         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->pdgid);
+         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->dxy);
+         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->pt);
+         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->eta);
+         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->phi);
+         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->z0);
+         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->d0);
+         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->charge);
+         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->pdgid);
+         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->dxy);
+         Hists[0][h_index++]->Fill(fabs((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->eta - (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->eta));
+         Hists[0][h_index++]->Fill(fabs(deltaPhi((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->phi, (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->phi)));
+         Hists[0][h_index++]->Fill(fabs((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->z0 - (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->z0));
+         Hists[0][h_index++]->Fill(fabs((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->d0 - (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->d0));
+         Hists[0][h_index++]->Fill((deltaR((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->eta, (*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->phi, (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->eta, (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->phi)));
+         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->pt);
+         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->eta);
+         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->phi);
+         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->z0);
+         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->d0);
+         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->charge);
+         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->pdgid);
+         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_dmin_n_index[TP_mind0_nindex]]->dxy);
+         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->pt);
+         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->eta);
+         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->phi);
+         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->z0);
+         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->d0);
+         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->charge);
+         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->pdgid);
+         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_dmin_p_index[TP_mind0_pindex]]->dxy);
+         Hists[0][h_index++]->Fill(fabs((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->eta - (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->eta));
+         Hists[0][h_index++]->Fill(fabs(deltaPhi((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->phi, (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->phi)));
+         Hists[0][h_index++]->Fill(fabs((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->z0 - (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->z0));
+         Hists[0][h_index++]->Fill(fabs((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->d0 - (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->d0));
+         Hists[0][h_index++]->Fill((deltaR((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->eta,(*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->phi, (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->eta,(*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->phi)));
          }
 
          // cout<<"end of Histogram filling"<<"\n";
 
          // Atleast 1 pair of opposite sign muons
-         if (selectedMu->size() >= 2 && (mu_n_index.size() != 0) && (mu_p_index.size() != 0))
+         if ((selectedMu_zmin->size() >= 2) && (selectedMu_dmin->size() >= 2) && (mu_zmin_n_index.size() != 0) && (mu_zmin_p_index.size() != 0) && (mu_dmin_n_index.size() != 0) && (mu_dmin_p_index.size() != 0) && (selectedTPs_dmin->size() >= 2) && (selectedTPs_zmin->size() >= 2))
          {
-            h_d0_Mu_n_Mu_p->Fill((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->d0,(*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->d0);
-            h_z0_Mu_n_Mu_p->Fill((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->z0,(*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->z0);
+            // h_displaced_vertex->Fill(x_dv,y_dv);
+            h_d0_Mu_n_Mu_p->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->d0,(*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->d0);
+            h_z0_Mu_n_Mu_p->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->z0,(*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->z0);
             h_index = 0;
             Hists[1][h_index++]->Fill(selectedTPs->size());
             Hists[1][h_index++]->Fill(selectedMu->size());
@@ -656,8 +1004,9 @@ void Analyzer_DisplacedMuon::Loop(TString type,
                Hists[1][h_index + 4]->Fill((*selectedTPs)[i]->d0);
                Hists[1][h_index + 5]->Fill((*selectedTPs)[i]->charge);
                Hists[1][h_index + 6]->Fill((*selectedTPs)[i]->pdgid);
+               Hists[1][h_index + 7]->Fill((*selectedTPs)[i]->dxy);
             }
-            h_index += 7;
+            h_index += 8;
             Hists[1][h_index++]->Fill((*selectedTPs)[0]->pt);
             Hists[1][h_index++]->Fill((*selectedTPs)[0]->eta);
             Hists[1][h_index++]->Fill((*selectedTPs)[0]->phi);
@@ -665,6 +1014,7 @@ void Analyzer_DisplacedMuon::Loop(TString type,
             Hists[1][h_index++]->Fill((*selectedTPs)[0]->d0);
             Hists[1][h_index++]->Fill((*selectedTPs)[0]->charge);
             Hists[1][h_index++]->Fill((*selectedTPs)[0]->pdgid);
+            Hists[1][h_index++]->Fill((*selectedTPs)[0]->dxy);
             Hists[1][h_index++]->Fill((*selectedTPs)[1]->pt);
             Hists[1][h_index++]->Fill((*selectedTPs)[1]->eta);
             Hists[1][h_index++]->Fill((*selectedTPs)[1]->phi);
@@ -672,53 +1022,103 @@ void Analyzer_DisplacedMuon::Loop(TString type,
             Hists[1][h_index++]->Fill((*selectedTPs)[1]->d0);
             Hists[1][h_index++]->Fill((*selectedTPs)[1]->charge);
             Hists[1][h_index++]->Fill((*selectedTPs)[1]->pdgid);
+            Hists[1][h_index++]->Fill((*selectedTPs)[1]->dxy);
             Hists[1][h_index++]->Fill(fabs((*selectedTPs)[0]->eta - (*selectedTPs)[1]->eta));
             Hists[1][h_index++]->Fill(fabs(deltaPhi((*selectedTPs)[0]->phi,(*selectedTPs)[1]->phi)));
             Hists[1][h_index++]->Fill(fabs((*selectedTPs)[0]->z0 - (*selectedTPs)[1]->z0));
             Hists[1][h_index++]->Fill(fabs((*selectedTPs)[0]->d0 - (*selectedTPs)[1]->d0));
             Hists[1][h_index++]->Fill((deltaR((*selectedTPs)[0]->eta,(*selectedTPs)[0]->phi, (*selectedTPs)[1]->eta,(*selectedTPs)[1]->phi)));
 
+            
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->pt);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->eta);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->phi);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->z0);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->d0);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->charge);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->pdgid);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->dxy);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->pt);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->eta);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->phi);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->z0);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->d0);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->charge);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->pdgid);
+            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->dxy);
+            Hists[1][h_index++]->Fill(fabs((*selectedTPs_zmin)[0]->eta - (*selectedTPs_zmin)[1]->eta));
+            Hists[1][h_index++]->Fill(fabs(deltaPhi((*selectedTPs_zmin)[0]->phi, (*selectedTPs_zmin)[1]->phi)));
+            Hists[1][h_index++]->Fill(fabs((*selectedTPs_zmin)[0]->z0 - (*selectedTPs_zmin)[1]->z0));
+            Hists[1][h_index++]->Fill(fabs((*selectedTPs_zmin)[0]->d0 - (*selectedTPs_zmin)[1]->d0));
+            Hists[1][h_index++]->Fill((deltaR((*selectedTPs_zmin)[0]->eta, (*selectedTPs_zmin)[0]->phi, (*selectedTPs_zmin)[1]->eta, (*selectedTPs_zmin)[1]->phi)));
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[0]->pt);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[0]->eta);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[0]->phi);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[0]->z0);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[0]->d0);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[0]->charge);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[0]->pdgid);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[0]->dxy);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[1]->pt);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[1]->eta);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[1]->phi);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[1]->z0);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[1]->d0);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[1]->charge);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[1]->pdgid);
+            Hists[1][h_index++]->Fill((*selectedTPs_dmin)[1]->dxy);
+            Hists[1][h_index++]->Fill(fabs((*selectedTPs_dmin)[0]->eta - (*selectedTPs_dmin)[1]->eta));
+            Hists[1][h_index++]->Fill(fabs(deltaPhi((*selectedTPs_dmin)[0]->phi, (*selectedTPs_dmin)[1]->phi)));
+            Hists[1][h_index++]->Fill(fabs((*selectedTPs_dmin)[0]->z0 - (*selectedTPs_dmin)[1]->z0));
+            Hists[1][h_index++]->Fill(fabs((*selectedTPs_dmin)[0]->d0 - (*selectedTPs_dmin)[1]->d0));
+            Hists[1][h_index++]->Fill((deltaR((*selectedTPs_dmin)[0]->eta,(*selectedTPs_dmin)[0]->phi, (*selectedTPs_dmin)[1]->eta,(*selectedTPs_dmin)[1]->phi)));
+            
+
             // if ((*selectedMu_zmin)[0]->charge == 1)
                // cout <<" \t Charge = " << (*selectedMu_zmin)[0]->charge << " \t PDGID = " << (*selectedMu_zmin)[0]->pdgid;
 
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->pt);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->eta);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->phi);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->z0);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->d0);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->charge);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->pdgid);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->pt);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->eta);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->phi);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->z0);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->d0);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->charge);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->pdgid);
-            Hists[1][h_index++]->Fill(fabs((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->eta - (*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->eta));
-            Hists[1][h_index++]->Fill(fabs(deltaPhi((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->phi, (*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->phi)));
-            Hists[1][h_index++]->Fill(fabs((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->z0 - (*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->z0));
-            Hists[1][h_index++]->Fill(fabs((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->d0 - (*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->d0));
-            Hists[1][h_index++]->Fill((deltaR((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->eta, (*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->phi, (*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->eta, (*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]]->phi)));
-            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->pt);
-            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->eta);
-            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->phi);
-            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->z0);
-            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->d0);
-            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->charge);
-            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->pdgid);
-            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->pt);
-            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->eta);
-            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->phi);
-            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->z0);
-            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->d0);
-            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->charge);
-            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->pdgid);
-            Hists[1][h_index++]->Fill(fabs((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->eta - (*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->eta));
-            Hists[1][h_index++]->Fill(fabs(deltaPhi((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->phi, (*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->phi)));
-            Hists[1][h_index++]->Fill(fabs((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->z0 - (*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->z0));
-            Hists[1][h_index++]->Fill(fabs((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->d0 - (*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->d0));
-            Hists[1][h_index++]->Fill((deltaR((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->eta, (*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->phi, (*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->eta, (*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->phi)));
+            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->pt);
+            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->eta);
+            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->phi);
+            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->z0);
+            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->d0);
+            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->charge);
+            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->pdgid);
+            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->dxy);
+            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->pt);
+            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->eta);
+            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->phi);
+            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->z0);
+            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->d0);
+            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->charge);
+            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->pdgid);
+            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->dxy);
+            Hists[1][h_index++]->Fill(fabs((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->eta - (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->eta));
+            Hists[1][h_index++]->Fill(fabs(deltaPhi((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->phi, (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->phi)));
+            Hists[1][h_index++]->Fill(fabs((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->z0 - (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->z0));
+            Hists[1][h_index++]->Fill(fabs((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->d0 - (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->d0));
+            Hists[1][h_index++]->Fill((deltaR((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->eta, (*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->phi, (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->eta, (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->phi)));
+            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->pt);
+            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->eta);
+            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->phi);
+            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->z0);
+            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->d0);
+            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->charge);
+            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->pdgid);
+            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->dxy);
+            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->pt);
+            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->eta);
+            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->phi);
+            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->z0);
+            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->d0);
+            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->charge);
+            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->pdgid);
+            Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->dxy);
+            Hists[1][h_index++]->Fill(fabs((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->eta - (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->eta));
+            Hists[1][h_index++]->Fill(fabs(deltaPhi((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->phi, (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->phi)));
+            Hists[1][h_index++]->Fill(fabs((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->z0 - (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->z0));
+            Hists[1][h_index++]->Fill(fabs((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->d0 - (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->d0));
+            Hists[1][h_index++]->Fill((deltaR((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->eta, (*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->phi, (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->eta, (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->phi)));
          }
 
       for (int l = 0; l < selectedTracks->size(); l++)
@@ -732,12 +1132,26 @@ void Analyzer_DisplacedMuon::Loop(TString type,
       {
          // delete (*selectedTPs)[l];
          delete (*selectedMu)[l];
+      }
+      for (int l = 0; l < selectedMu_zmin->size(); l++)
+      {
          delete (*selectedMu_zmin)[l];
+      }
+      for (int l = 0; l < selectedMu_dmin->size(); l++)
+      {
          delete (*selectedMu_dmin)[l];
       }
       for (int l = 0; l < selectedTPs->size(); l++)
       {
          delete (*selectedTPs)[l];
+      }
+      for (int l = 0; l < selectedTPs_dmin->size(); l++)
+      {
+         delete (*selectedTPs_dmin)[l];
+      }
+      for (int l = 0; l < selectedTPs_zmin->size(); l++)
+      {
+         delete (*selectedTPs_zmin)[l];
       }
 
       selectedTracks->clear();
@@ -763,6 +1177,12 @@ void Analyzer_DisplacedMuon::Loop(TString type,
       selectedMu_dmin->clear();
       selectedMu_dmin->shrink_to_fit();
       delete selectedMu_dmin;
+      selectedTPs_dmin->clear();
+      selectedTPs_dmin->shrink_to_fit();
+      delete selectedTPs_dmin;
+      selectedTPs_zmin->clear();
+      selectedTPs_zmin->shrink_to_fit();
+      delete selectedTPs_zmin;
 
       // cout<<endl;
 
@@ -844,6 +1264,18 @@ void Analyzer_DisplacedMuon::Loop(TString type,
    c.SaveAs(DIR + "/"+ h_z0_Mu_n_Mu_p->GetName() + ".pdf");
    delete h_d0_Mu_n_Mu_p;
    delete h_z0_Mu_n_Mu_p;
+   h_displaced_vertex_x->Draw("colz");
+   h_displaced_vertex_x->GetYaxis()->SetTitle("Leading p_t - x");
+   h_displaced_vertex_x->GetXaxis()->SetTitle("Displaced vertex - x");
+   h_displaced_vertex_x->Write("", TObject::kOverwrite);
+   c.SaveAs(DIR + "/"+ h_displaced_vertex_x->GetName() + ".pdf");
+   delete h_displaced_vertex_x;
+   h_displaced_vertex_y->Draw("colz");
+   h_displaced_vertex_y->GetYaxis()->SetTitle("Leading p_t - y");
+   h_displaced_vertex_y->GetXaxis()->SetTitle("Displaced vertex - y");
+   h_displaced_vertex_y->Write("", TObject::kOverwrite);
+   c.SaveAs(DIR + "/"+ h_displaced_vertex_y->GetName() + ".pdf");
+   delete h_displaced_vertex_y;
    fout->Close();
 
    ofstream myfile;

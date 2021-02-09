@@ -25,6 +25,8 @@
 
 using namespace std;
 
+bool VERBOSE[]={false,true,true,true};
+
 void SetPlotStyle();
 void mySmallText(Double_t x, Double_t y, Color_t color, char *text);
 
@@ -32,8 +34,37 @@ bool ComparePtTrack(Track_Parameters *a, Track_Parameters *b) { return a->pt > b
 bool CompareZ0Track(Track_Parameters *a, Track_Parameters *b) { return a->z0 > b->z0; }
 bool CompareD0Track(Track_Parameters *a, Track_Parameters *b) { return a->d0 > b->d0; }
 
-Double_t dist(Double_t x1, Double_t y1 , Double_t x2, Double_t y2){
+Double_t dist(Double_t x1, Double_t y1 , Double_t x2=0, Double_t y2=0){
    return (TMath::Sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2)));
+}
+Double_t dist3(Double_t x1, Double_t y1 , Double_t z1){
+   return (TMath::Sqrt((x1)*(x1) + (y1)*(y1) + (z1)*(z1)));
+}
+
+Double_t dist_TPs(Track_Parameters *a, Track_Parameters *b){
+   float x1 = a->x0; //   Centers of the circles
+   float y1 = a->y0; // 
+   float x2 = b->x0; // 
+   float y2 = b->y0; // 
+   float R1 = a->rho;   // Radii of the circles
+   float R2 = b->rho;
+   float R = dist(x1,y1,x2,y2); // Distance between centers
+   if((R>=(R1-R2)) && (R<=(R1+R2))){
+      return (0);
+   }
+   else if(R==0){
+      return (-99999.0);
+   }
+   else{
+
+      return(R-R1-R2);
+   }
+
+}
+
+Double_t dist_Vertex(Double_t x_vtx, Double_t y_vtx, Double_t z_vtx, Track_Parameters *a){
+   float R = fabs(dist(x_vtx,y_vtx,a->x0,a->y0) -(a->rho));
+   return TMath::Sqrt(R*R + (z_vtx - a->z0)*(z_vtx - a->z0));
 }
 
 Double_t dist_Vertex(Double_t x_vtx, Double_t y_vtx, Track_Parameters *a){
@@ -41,7 +72,7 @@ Double_t dist_Vertex(Double_t x_vtx, Double_t y_vtx, Track_Parameters *a){
    return (fabs(R-(a->rho)));
 }
 
-void Vertex(Track_Parameters *a, Track_Parameters*b, Double_t &x_vtx, Double_t &y_vtx){
+bool Vertex(Track_Parameters *a, Track_Parameters*b, Double_t &x_vtx, Double_t &y_vtx, Double_t &z_vtx){
    float x1 = a->x0; //   Centers of the circles
    float y1 = a->y0; // 
    float x2 = b->x0; // 
@@ -73,38 +104,74 @@ void Vertex(Track_Parameters *a, Track_Parameters*b, Double_t &x_vtx, Double_t &
       if(gx==0 && gy==0){ // Only 1 intersection
          x_vtx = ix1;
          y_vtx = iy1;
+         z_vtx = a->z(a->phi_T(ix1,iy1));
          // cout<<"----1 intersection ----";
-         return;
+         return true;
       }
       // Finding minimum z distance to decide between the 2 intersection vertex
-      float z11 = a->phi_T(ix1,iy1);
-      float z12 = a->phi_T(ix2,iy2);
-      float z21 = b->phi_T(ix1,iy1);
-      float z22 = b->phi_T(ix2,iy2);
+      float ap1 = a->phi_T(ix1,iy1);
+      float bp1 = b->phi_T(ix1,iy1);
+      float ap2 = a->phi_T(ix2,iy2);
+      float bp2 = b->phi_T(ix2,iy2);
+      float z11 = a->z(ap1);
+      float z21 = b->z(bp1);
+      float z12 = a->z(ap2);
+      float z22 = b->z(bp2);
 
-      // cout<<Form("z11 = %5.2f    |   z12 = %5.2f    |  z21 = %5.2f    |   z22 = %5.2f    |   z22 = %5.2f",z11,z12,z21,z22)<<endl;//<<" dxy = "<<tp_dxy->at(it)<<"\t \t dist = "<<TMath::Sqrt((*selectedTPs)[j]->x*(*selectedTPs)[j]->x + (*selectedTPs)[j]->y*(*selectedTPs)[j]->y)<<" \t eta = "<<tp_eta->at(it)<<" \t phi = "<<tp_phi->at(it)<<" \t pt = "<<tp_pt->at(it)<<endl;
+      float delz1 = fabs(z11 - z21);//fabs(fabs(ap1 - bp1)-TMath::Pi());// fabs(dist3(ix1,iy1,z11)-dist3(ix1,iy1,z21));
+      float delz2 = fabs(z12 - z22);//fabs(fabs(ap2 - bp2)-TMath::Pi());// fabs(dist3(ix2,iy2,z12)-dist3(ix2,iy2,z22));
 
-
-      float delz1 = fabs(z11 - z21);
-      float delz2 = fabs(z12 - z22);
-      if (delz1 <= delz2){
+      if(VERBOSE[3]){// &&(fabs(z11-z_vtx)>0.1 && fabs(z12-z_vtx)>0.1 && fabs(z21-z_vtx)>0.1 && fabs(z22-z_vtx)>0.1)){
+         std::cout<<Form("ix1 = %5.2f    |   iy1 = %5.2f    |  ix2 = %5.2f    |   iy2 = %5.2f",ix1,iy1,ix2,iy2)<<endl;
+         std::cout<<Form("ap1 = %5.2f    |   bp1 = %5.2f    |  ap2 = %5.2f    |   bp2 = %5.2f",ap1,bp1,ap2,bp2)<<endl;
+         std::cout<<Form("z11 = %5.2f    |   z21 = %5.2f    |  z12 = %5.2f    |   z22 = %5.2f    |   delz1 = %5.2f    |   delz2 = %5.2f",z11,z21,z12,z22,delz1,delz2)<<endl;//<<" dxy = "<<tp_dxy->at(it)<<"\t \t dist = "<<TMath::Sqrt((*selectedTPs)[j]->x*(*selectedTPs)[j]->x + (*selectedTPs)[j]->y*(*selectedTPs)[j]->y)<<" \t eta = "<<tp_eta->at(it)<<" \t phi = "<<tp_phi->at(it)<<" \t pt = "<<tp_pt->at(it)<<endl;
+      }
+      /*
+      if(fabs(z22-a->z0)<0.1){
+         x_vtx = ix2;
+         y_vtx = iy2;
+         z_vtx = z22;
+         return true;
+      }
+      else if(fabs(z12-a->z0)<0.1){
+         x_vtx = ix2;
+         y_vtx = iy2;
+         z_vtx = z12;
+         return true;
+      }
+      else if(fabs(z21-a->z0)<0.1){
          x_vtx = ix1;
          y_vtx = iy1;
+         z_vtx = z21;
+         return true;
+      }
+      else{
+         x_vtx = ix1;
+         y_vtx = iy1;
+         z_vtx = z11;
+         return true;
+      }  */    
+      if (delz1<=delz2){
+         x_vtx = ix1;
+         y_vtx = iy1;
+         z_vtx = z11;// fabs(a->z0-z11)<fabs(a->z0-z21)?z11:z21;
          // cout<<"----2 intersection ----";
-         return;         
+         return true;         
       }
       else{
          x_vtx = ix2;
          y_vtx = iy2;
-         return;
+         z_vtx = z12;// fabs(a->z0-z12)<fabs(a->z0-z22)?z12:z22;//fabs(z12)<fabs(z22)?z12:z22;
+         return true;
       }
+      
 
    }
    else if(R==0){
       // Circles with Same center. 
       // x_vtx = -999.0;//a->x();  // Considering First track coordinates as vertex
       // y_vtx = -999.0;//a->y();
-      return;
+      return false;
    }
    /*
    else{
@@ -120,7 +187,7 @@ void Vertex(Track_Parameters *a, Track_Parameters*b, Double_t &x_vtx, Double_t &
          // Circles with Same center. 
          //x_vtx = a->x();  // Considering First track coordinates as vertex
          // y_vtx = a->y();
-         return;
+         return false;
       }
       x_11 = x1;
       x_12 = x1;
@@ -170,6 +237,14 @@ void Vertex(Track_Parameters *a, Track_Parameters*b, Double_t &x_vtx, Double_t &
       x_vtx = (x_vtx + x_22)/2;
       y_vtx = (y_vtx + y_22)/2;
    }
+   //! Does this make sense for no intersection case???
+   float az = a->z(a->phi_T(x_vtx,y_vtx));
+   float bz = b->z(b->phi_T(x_vtx,y_vtx));
+   z_vtx = az;//(az+bz)/2.0;
+   if(VERBOSE[3]){
+      std::cout<<Form("z_vtx = %5.1f  |  az = %5.1f  |  bz = %5.1f",z_vtx,az,bz)<<endl;
+   }
+   return false;
 }
 
 Double_t deltaPhi(Double_t phi1, Double_t phi2)
@@ -225,7 +300,6 @@ void Analyzer_DisplacedMuon::Loop(TString type,
                             float TP_minD0 = 0.0,
                             int TP_select_injet = 0)
 {
-
    gROOT->SetBatch();
    gErrorIgnoreLevel = kWarning;
 
@@ -240,85 +314,64 @@ void Analyzer_DisplacedMuon::Loop(TString type,
    // histograms
    // ----------------------------------------------------------------------------------------------------------------
 
-   std::vector<TString> regions{"tpgeq2", "tpgeq2osMu"};
+   std::vector<TString> regions{"tpgeq2","tpgeq2osMu"};
    std::vector<TString> vars{"ntp","nMu",
-                             "tp_pt", "tp_eta", "tp_phi", "tp_z0", "tp_d0", "tp_charge", "tp_pdgid","tp_dist",
-                             "tp1pt", "tp1eta", "tp1phi", "tp1z0", "tp1d0", "tp1charge", "tp1pdgid","tp1_dist",
-                             "tp2pt", "tp2eta", "tp2phi", "tp2z0", "tp2d0", "tp2charge", "tp2pdgid","tp2_dist",
-                             "tp_tp_eta", "tp_tp_phi", "tp_tp_z0", "tp_tp_d0", "tp_tp_dR",
-                             "tpz1pt", "tpz1eta", "tpz1phi", "tpz1z0", "tpz1d0", "tpz1charge", "tpz1pdgid","tpz1dist",
-                             "tpz2pt", "tpz2eta", "tpz2phi", "tpz2z0", "tpz2d0", "tpz2charge", "tpz2pdgid","tpz2dist",
-                             "tp_z0_min_delta_eta", "tp_z0_min_delta_phi", "tp_z0_min_delta_z0", "tp_z0_min_delta_d0", "tp_z0_min_delta_dR",
-                             "tpd1pt", "tpd1eta", "tpd1phi", "tpd1z0", "tpd1d0", "tpd1charge", "tpd1pdgid","tpd1dist",
-                             "tpd2pt", "tpd2eta", "tpd2phi", "tpd2z0", "tpd2d0", "tpd2charge", "tpd2pdgid","tpd2dist",
-                             "tp_d0_min_delta_eta", "tp_d0_min_delta_phi", "tp_d0_min_delta_z0", "tp_d0_min_delta_d0", "tp_d0_min_delta_dR",
-                             "muz1pt", "muz1eta", "muz1phi", "muz1z0", "muz1d0", "muz1charge", "muz1pdgid","muz1dist",
-                             "muz2pt", "muz2eta", "muz2phi", "muz2z0", "muz2d0", "muz2charge", "muz2pdgid","muz2dist",
-                             "mu_z0_min_delta_eta", "mu_z0_min_delta_phi", "mu_z0_min_delta_z0", "mu_z0_min_delta_d0", "mu_z0_min_delta_dR",
-                             "mud1pt", "mud1eta", "mud1phi", "mud1z0", "mud1d0", "mud1charge", "mud1pdgid","mud1dist",
-                             "mud2pt", "mud2eta", "mud2phi", "mud2z0", "mud2d0", "mud2charge", "mud2pdgid","mud2dist",
-                             "mu_d0_min_delta_eta", "mu_d0_min_delta_phi", "mu_d0_min_delta_z0", "mu_d0_min_delta_d0", "mu_d0_min_delta_dR"};
+                             "tp_pt", "tp_eta", "tp_phi", "tp_z0", "tp_d0", "tp_charge", "tp_pdgid","tp_dxy",
+                             "tp1pt", "tp1eta", "tp1phi", "tp1z0", "tp1d0", "tp1charge", "tp1pdgid","tp1_dxy",
+                             "tp2pt", "tp2eta", "tp2phi", "tp2z0", "tp2d0", "tp2charge", "tp2pdgid","tp2_dxy",
+                             "tp_tp_eta", "tp_tp_phi", "tp_tp_z0", "tp_tp_d0", "tp_tp_dR","tp_tp_dist",
+                             "tpd1pt", "tpd1eta", "tpd1phi", "tpd1z0", "tpd1d0", "tpd1charge", "tpd1pdgid","tpd1_dxy",
+                             "tpd2pt", "tpd2eta", "tpd2phi", "tpd2z0", "tpd2d0", "tpd2charge", "tpd2pdgid","tpd2_dxy",
+                             "tp_d0_min_delta_eta", "tp_d0_min_delta_phi", "tp_d0_min_delta_z0", "tp_d0_min_delta_d0", "tp_d0_min_delta_dR","tp_d0_min_delta_dist",
+                             "mud1pt", "mud1eta", "mud1phi", "mud1z0", "mud1d0", "mud1charge", "mud1pdgid","mud1_dxy",
+                             "mud2pt", "mud2eta", "mud2phi", "mud2z0", "mud2d0", "mud2charge", "mud2pdgid","mud2_dxy",
+                             "mu_d0_min_delta_eta", "mu_d0_min_delta_phi", "mu_d0_min_delta_z0", "mu_d0_min_delta_d0", "mu_d0_min_delta_dR","mu_d0_min_delta_dist",};
    std::vector<int> nbins{100, 20,
                           20, 100, 100, 100, 100, 100, 400, 100,
                           100, 100, 100, 100, 100, 100, 400, 100,
                           100, 100, 100, 100, 100, 100, 400, 100,
-                          100, 100, 100, 100, 100,
+                          100, 100, 100, 100, 100, 100,
                           100, 100, 100, 100, 100, 100, 400, 100,
                           100, 100, 100, 100, 100, 100, 400, 100,
-                          100, 100, 100, 100, 100,
+                          100, 100, 100, 100, 100, 100,
                           100, 100, 100, 100, 100, 100, 400, 100,
                           100, 100, 100, 100, 100, 100, 400, 100,
-                          100, 100, 100, 100, 100,
-                          100, 100, 100, 100, 100, 100, 400, 100,
-                          100, 100, 100, 100, 100, 100, 400, 100,
-                          100, 100, 100, 100, 100,
-                          100, 100, 100, 100, 100, 100, 400, 100,
-                          100, 100, 100, 100, 100, 100, 400, 100,
-                          100, 100, 100, 100, 100};
+                          100, 100, 100, 100, 100, 100};
    std::vector<float> lowEdge{0, 0,
                               0, -2.4, -3.2, -20, -1, -2, 0, 0,
                               0, -2.4, -3.2, -20, -1, -2, 0, 0,
                               0, -2.4, -3.2, -20, -1, -2, 0, 0,
-                              0, 0, 0, 0, 0,
+                              0, 0, 0, 0, 0, 0,
                               0, -2.4, -3.2, -20, -1, -2, 0, 0,
                               0, -2.4, -3.2, -20, -1, -2, 0, 0,
-                              0, 0, 0, 0, 0,
+                              0, 0, 0, 0, 0, 0,
                               0, -2.4, -3.2, -20, -1, -2, 0, 0,
                               0, -2.4, -3.2, -20, -1, -2, 0, 0,
-                              0, 0, 0, 0, 0,
-                              0, -2.4, -3.2, -20, -1, -2, 0, 0,
-                              0, -2.4, -3.2, -20, -1, -2, 0, 0,
-                              0, 0, 0, 0, 0,
-                              0, -2.4, -3.2, -20, -1, -2, 0, 0,
-                              0, -2.4, -3.2, -20, -1, -2, 0, 0,
-                              0, 0, 0, 0, 0};
+                              0, 0, 0, 0, 0, 0};
    std::vector<float> highEdge{100, 20,
                                20,  2.4, 3.2, 20, 1, 2, 400, 5,
                                100, 2.4, 3.2, 20, 1, 2, 400, 5,
                                100, 2.4, 3.2, 20, 1, 2, 400, 5,
-                               5, 4, 0.5, 0.5, 5,
+                               5, 4, 0.5, 0.5, 5, 1,
                                100, 2.4, 3.2, 20, 1, 2, 400, 5,
                                100, 2.4, 3.2, 20, 1, 2, 400, 5,
-                               5, 4, 0.5, 0.5, 5,
+                               5, 4, 0.5, 0.5, 5, 1,
                                100, 2.4, 3.2, 20, 1, 2, 400, 5,
                                100, 2.4, 3.2, 20, 1, 2, 400, 5,
-                               5, 4, 0.5, 0.5, 5,
-                               100, 2.4, 3.2, 20, 1, 2, 400, 5,
-                               100, 2.4, 3.2, 20, 1, 2, 400, 5,
-                               5, 4, 0.5, 0.5, 5,
-                               100, 2.4, 3.2, 20, 1, 2, 400, 5,
-                               100, 2.4, 3.2, 20, 1, 2, 400, 5,
-                               5, 4, 0.5, 0.5, 5};
+                               5, 4, 0.5, 0.5, 5, 1};
 
    typedef vector<TH1F *> Dim1;
    typedef vector<Dim1> Dim2;
    typedef vector<Dim2> Dim3;
    typedef vector<Dim3> Dim4;
+   TH1F *h_delta_dist_xy = new TH1F("h_delta_dist_xy","h_delta_dist_xy; (a) Distance between Leading p_{T} TPs in x-y (cm) ; Events",50,0,1);
+   TH1F *h_error_delta_x = new TH1F("h_error_delta_x","h_error_delta_x; (b) #Delta x_{displaced} with true Leading p_{T} x (cm) ; Events",100,0,5);
+   TH1F *h_delta_dist_z = new TH1F("h_delta_dist_z","h_delta_dist_z; (c) Distance between Leading p_{T} TPs in z (cm) ; Events",100,0,2);
+   TH1F *h_error_delta_z = new TH1F("h_error_delta_z","h_error_delta_z; (d) Leading p_{T} TP error in z (cm) ; Events",100,0,2);
    TH2F *h_d0_Mu_n_Mu_p = new TH2F("d0_Mu_n_Mu_p","d0_Mu_n_Mu_p",50,-5,5,50,-5,5);
-   TH2F *h_z0_Mu_n_Mu_p = new TH2F("z0_Mu_n_Mu_p","z0_Mu_n_Mu_p",100,-20,20,100,-20,20);
-   TH2F *h_displaced_vertex_x = new TH2F("displaced_vertex_x","displaced_vertex_x",50,-5,5,50,-5,5);
-   TH2F *h_displaced_vertex_y = new TH2F("displaced_vertex_y","displaced_vertex_y",50,-5,5,50,-5,5);
-Dim2 Hists(regions.size(), Dim1(vars.size()));
+   TH2F *h_displaced_vertex_x = new TH2F("displaced_vertex_x","(b) displaced_vertex_x",50,-5,5,50,-5,5);
+   TH2F *h_displaced_vertex_y = new TH2F("displaced_vertex_y","(b) displaced_vertex_y",50,-5,5,50,-5,5);
+   Dim2 Hists(regions.size(), Dim1(vars.size()));
    std::stringstream name;
    TH1F *h_test;
    Float_t **Output_vars = new Float_t *[regions.size()];
@@ -339,29 +392,17 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
 
    if (fChain == 0) return;
 
-   int nAccept = 0;
-   std::vector<Track_Parameters *> *selectedTracks;
-   std::vector<Track_Parameters *> *selectedTPs;
-   std::vector<Track_Parameters *> *selectedTPs_zmin;
-   std::vector<Track_Parameters *> *selectedTPs_dmin;
-   std::vector<Track_Parameters *> *selectedMu;
-   std::vector<Track_Parameters *> *selectedMu_zmin;
-   std::vector<Track_Parameters *> *selectedMu_dmin;
-   int TP_index = -1;
-   int TP_mind0_nindex = -1;
-   int TP_minz0_nindex = -1;
-   int TP_mind0_pindex = -1;
-   int TP_minz0_pindex = -1;
-
-   int nCount_2trk = 0;
-   float pt_cuts[5] = {5.0,7.0,9.0,11.0,13.0};
+   // Counters 
+   int nAccept = 0;           // Acceptance 
+   int nCount_2trk = 0;       // atleast 2 tracks
+   float pt_cuts[5] = {5.0,7.0,9.0,11.0,13.0};     // Cuts to control event rate
    float d0_cuts[5] = {0.0,0.2,0.5,0.8,1.0};
    // float z0_cuts[5] = {0.2,0.4,0.6,0.8,1.0};
    int nCount_trk_pt[5] = {0,0,0,0,0};
    int nCount_trk_d0[5] = {0,0,0,0,0};
    int nCount_trk_pt_d0[5][5] = {0};
    // int nCount_trk_z0[5] = {0,0,0,0,0};
-   int nCount_2tp = 0;
+   int nCount_2tp = 0;        // atleast 2 tracking particles
    int nCount_tp_pt[5] = {0,0,0,0,0};
    int nCount_tp_d0[5] = {0,0,0,0,0};
    int nCount_tp_pt_d0[5][5] = {0};
@@ -372,32 +413,49 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
       }
    }
    // int nCount_tp_z0[5] = {0,0,0,0,0};
-   int nCount_2mu=0;
-   int nCount_2muOS = 0;
+   int nCount_2mu=0;       // atleast 2 muons
+   int nCount_2muOS = 0;   // atleast 2 muons, with one pair of opposite sign
+
+   std::vector<Track_Parameters *> *selectedTracks;
+   std::vector<Track_Parameters *> *selectedTPs;
+   std::vector<Track_Parameters *> *selectedTPs_dmin;
+   std::vector<Track_Parameters *> *selectedMu;
+   std::vector<Track_Parameters *> *selectedMu_dmin;
+   int TP_index = -1;
+   int TP_mind0_nindex = -1;
+   int TP_mind0_pindex = -1;
+
    Long64_t nevt = fChain->GetEntries();
 
-   for (Long64_t i=0; i<nevt; i++) { // event = 55461 or 41263 (cT100)  or 68163 (cT5000)
+   for (Long64_t i=0; i<nevt; i++) { // 44,36,32,30,24,22,16,13,8,5
       fChain->GetEntry(i);
-      // if (Cut(ientry) < 0) continue;
 
-      displayProgress(i, nevt);
+      if(VERBOSE[0]||VERBOSE[2]){
+         std::cout<<"------------------------------------------------------------------------------------------------------"<<endl;
+         std::cout<<"Event Number  = "<<i<<endl;
+         if(i>50) break;
+      }
+      else if(VERBOSE[1]){
+         std::cout<<"------------------------------------------------------------------------------------------------------"<<endl;
+         std::cout<<"Event Number  = "<<i<<endl;
+         if(i>50) break;
+      }
+      else{
+         displayProgress(i, nevt);
+      }
+
+      selectedTracks = new std::vector<Track_Parameters *>();
+
+      selectedTPs = new std::vector<Track_Parameters *>();
+      selectedTPs_dmin = new std::vector<Track_Parameters *>();
+      selectedMu = new std::vector<Track_Parameters *>();
+      selectedMu_dmin = new std::vector<Track_Parameters *>();
 
       // ----------------------------------------------------------------------------------------------------------------
       // track particle loop
 
       int ntrk = 0;
-      int h_index;
-      selectedTracks = new std::vector<Track_Parameters *>();
-      // selectedTracks_zmin = new std::vector<Track_Parameters *>();
-      // selectedTracks_dmin = new std::vector<Track_Parameters *>();
-
-      selectedTPs = new std::vector<Track_Parameters *>();
-      selectedTPs_zmin = new std::vector<Track_Parameters *>();
-      selectedTPs_dmin = new std::vector<Track_Parameters *>();
-      selectedMu = new std::vector<Track_Parameters *>();
-      selectedMu_zmin = new std::vector<Track_Parameters *>();
-      selectedMu_dmin = new std::vector<Track_Parameters *>();
-      
+      int h_index;      
 
       for (int it = 0; it < (int)trk_pt->size(); it++)
       {
@@ -413,45 +471,18 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
          if (std::fabs(trk_d0->at(it)) < TP_minD0)
             continue;
 
-         // only look at tracks in (ttbar) jets ?
-         if (TP_select_injet > 0)
-         {
-            if (TP_select_injet == 1 && trk_injet->at(it) == 0)
-               continue;
-            if (TP_select_injet == 2 && trk_injet_highpt->at(it) == 0)
-               continue;
-            if (TP_select_injet == 3 && trk_injet_vhighpt->at(it) == 0)
-               continue;
-         }
-         int ndof = 2 * trk_nstub->at(it) - 5;
-         float chi2rphidof = (float)trk_chi2rphi->at(it) / ndof;
-         float chi2rzdof = (float)trk_chi2rz->at(it) / ndof;
-
-         if(chi2rphidof > 10)
-            continue;
-         if(chi2rzdof   > 10)
-            continue;
-         if(trk_bendchi2 ->at(it) > 10)
-            continue;
-
-         float K = 0.01*0.5696*(-trk_rinv->at(it))/trk_pt->at(it);
-         float rp = ((1/(2*K)) - trk_d0->at(it))/(-trk_rinv->at(it));
-         float dxy = sqrt(rp*rp + (trk_d0->at(it)/K) - 1/(4*K*K));
-
          selectedTracks->push_back(new Track_Parameters(trk_pt->at(it), trk_d0->at(it), trk_z0->at(it), trk_eta->at(it), trk_phi->at(it), -trk_rinv->at(it), it, -99999));
-         // (*selectedTracks)[selectedTracks->size()-1]->Propagate_Transverse(1.0/trk_rinv->at(it));
-         // selectedTPs->push_back(new Track_Parameters(trk_pt->at(it), trk_d0->at(it), trk_z0->at(it), trk_eta->at(it), trk_phi->at(it), -trk_rinv->at(it), it, -99999));
       }
+
+      if(VERBOSE[0])
+         std::cout<<"End of Track loop"<<endl;
 
       // ----------------------------------------------------------------------------------------------------------------
       // tracking particle loop
-      TH1F htmp_tp_z("htmp_tp_z", ";z (cm); Tracks", 601 , -30, 30);
-      TH1F htmp_tp_d("htmp_tp_d", ";d (cm); Tracks", 401 , -20, 20);
+      TH1F htmp_tp_z("htmp_tp_z", ";z (cm); Tracks", 601, -30, 30);
 
-      TH1F htmp_tp_x("htmp_tp_x", ";x (cm); Tracks", 401 , -20, 20);
-      TH1F htmp_tp_y("htmp_tp_y", ";y (cm); Tracks", 401 , -20, 20);
-
-      // cout<<htmp_tp_d.GetNbinsX()<<endl;
+      // TH1F htmp_tp_x("htmp_tp_x", ";x (cm); Tracks", 401 , -20, 20);
+      // TH1F htmp_tp_y("htmp_tp_y", ";y (cm); Tracks", 401 , -20, 20);
 
       for (int it = 0; it < (int)tp_pt->size(); it++)
       {
@@ -467,50 +498,25 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
             continue;
          if (std::fabs(tp_eta->at(it)) > TP_maxEta)
             continue;
+         /* //! Issue with NaN. Verify NTuple.
          if (TMath::IsNaN(tmp_d0))
             continue;
          if (TMath::IsNaN(tmp_z0))
             continue;
+         */
 
-         if (TP_select_injet > 0)
-         {
-            if (TP_select_injet == 1 && tp_injet->at(it) == 0)
-               continue;
-            if (TP_select_injet == 2 && tp_injet_highpt->at(it) == 0)
-               continue;
-            if (TP_select_injet == 3 && tp_injet_vhighpt->at(it) == 0)
-               continue;
-         }
-         // cut on PDG ID at plot stage?
+         // Only keep tracks of particular particles using PDGID
          if (TP_select_pdgid != 0)
          {
             if (fabs(tp_pdgid->at(it)) != fabs(TP_select_pdgid))
                continue;
          }
-
-         // if(fabs(tp_d0->at(it))<0.5)
-         //    continue;
-
-         float K = 0.01*0.5696*(tp_charge->at(it))/tp_pt->at(it);
-         float rp = ((1/(2*K)) - tp_d0->at(it))/(tp_charge->at(it));
-         float dxy = sqrt(rp*rp - (tp_d0_prod->at(it)/K) - 1/(4*K*K));
-         // if(fabs(dxy-tp_dxy->at(it))>0.1)
-            // cout<<i<<"\t dxy = "<<dxy<<"  \t tp_dxy = "<<tp_dxy->at(it)<<endl;
-         // cout << i << "\t" << tp_z0->at(it) << "\t" << tp_d0->at(it) << "\t" << tp_pt->at(it) << "\t" << tp_pdgid->at(it)<<"\n";
          selectedTPs->push_back(new Track_Parameters(tp_pt->at(it), tmp_d0, tmp_z0, tp_eta->at(it), tp_phi->at(it), tp_charge->at(it), it, tp_pdgid->at(it)));
-         int j = selectedTPs->size()-1;
-         // (*selectedTPs)[j]->x0 = tp_x->at(it);
-         // (*selectedTPs)[j]->y0 = tp_y->at(it);
-         // (*selectedTPs)[j]->Propagate_Transverse();
-         // cout<<Form("phi_T =   %7.2f     |  ",
-         // (*selectedTPs)[j]->Propagate_Transverse();
-         // if(fabs(tp_pdgid->at(it))==13)
-         // cout<<Form("dxy_calc = %5.2f    |   dxy = %5.2f    |  dist = %5.2f    |   eta = %5.2f    |   phi = %5.2f    |   pt = %5.2f",dxy,tp_dxy->at(it),TMath::Sqrt((*selectedTPs)[j]->x*(*selectedTPs)[j]->x + (*selectedTPs)[j]->y*(*selectedTPs)[j]->y),tp_eta->at(it),tp_phi->at(it),tp_pt->at(it))<<endl;//<<" dxy = "<<tp_dxy->at(it)<<"\t \t dist = "<<TMath::Sqrt((*selectedTPs)[j]->x*(*selectedTPs)[j]->x + (*selectedTPs)[j]->y*(*selectedTPs)[j]->y)<<" \t eta = "<<tp_eta->at(it)<<" \t phi = "<<tp_phi->at(it)<<" \t pt = "<<tp_pt->at(it)<<endl;
          htmp_tp_z.Fill(tmp_z0,tp_pt->at(it));
-         htmp_tp_d.Fill(tmp_d0,tp_pt->at(it));
       } // end tp loop
 
-      // cout<<"End of tracking particle loop \n";
+      if(VERBOSE[0])
+         std::cout<<"End of Track loop"<<endl;
 
       // ----------------------------------------------------------------------------------------------------------------
       // Gen particle loop
@@ -525,15 +531,17 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
             continue;
 
          // selectedTPs->push_back(new Track_Parameters(partPt[it], -99999, -99999, partEta[it], partPhi[it], partCh[it], it, partId[it]));
-      }
-      // cout << "End of Gen particle loop \n";
+      } // end gen loop
+
+      if(VERBOSE[0])
+         std::cout<<"End of Gen Particle loop"<<endl;
 
 // --------------------------------------------------------------------------------------------
-//                SELECTION CRITERIA -  Atleast 2 tracking particles 
+//                Minimum SELECTION CRITERIA -  Atleast 2 tracking particles 
 // --------------------------------------------------------------------------------------------
       if (!(selectedTPs->size() >= 2)) continue;
 
-   //* Primary Vertex Finding
+      //* Primary Vertex Finding used to find most common z-coordinate
       float zvtx_sliding = -999;
       float sigma_max = -999;
       int imax = -999;
@@ -562,45 +570,77 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
          found_z.push_back(imax);
          z_vertex.push_back(zvtx_sliding);
       }
-      // cout<<zvtx_sliding<<"\t";
+
+      if(VERBOSE[0])
+         std::cout<<"End of z-vertex Finding"<<endl;
 
       sort(selectedTPs->begin(), selectedTPs->end(), ComparePtTrack);
-      Double_t x_dv = (tp_x->at((*selectedTPs)[0]->index));//+tp_x->at((*selectedTPs)[1]->index))/2.0;
-      Double_t y_dv = (tp_y->at((*selectedTPs)[0]->index));//+tp_y->at((*selectedTPs)[1]->index))/2.0;
-      Double_t z_dv = (tp_z->at((*selectedTPs)[0]->index));//+tp_z->at((*selectedTPs)[1]->index))/2.0;
-      // float dist_12 = dist((*selectedTPs)[0]->x, (*selectedTPs)[0]->y,(*selectedTPs)[1]->x, (*selectedTPs)[1]->y);
+      Double_t x_dv = -9999.0;// (tp_x->at((*selectedTPs)[0]->index));//+tp_x->at((*selectedTPs)[1]->index))/2.0;
+      Double_t y_dv = -9999.0;// (tp_y->at((*selectedTPs)[0]->index));//+tp_y->at((*selectedTPs)[1]->index))/2.0;
+      Double_t z_dv = -9999.0;// (tp_z->at((*selectedTPs)[0]->index));//+tp_z->at((*selectedTPs)[1]->index))/2.0;
 
-      if(!(fabs(tp_x->at((*selectedTPs)[0]->index) - tp_x->at((*selectedTPs)[1]->index))<0.01)) continue;
-      Vertex((*selectedTPs)[0],(*selectedTPs)[1],x_dv,y_dv); //(selectedTPs->size())>2?2:1
-      // z_dv = ((*selectedTPs)[0]->z0 + (*selectedTPs)[1]->z0)/2.0;
-      // (*selectedTPs)[0]->Propagate_Transverse();
-      // (*selectedTPs)[1]->Propagate_Transverse();
+      //! Temporary selection of leading 2 p_T tracks from common vertex
+      if(!((fabs(tp_x->at((*selectedTPs)[0]->index) - tp_x->at((*selectedTPs)[1]->index))<0.01) && (fabs(tp_y->at((*selectedTPs)[0]->index) - tp_y->at((*selectedTPs)[1]->index))<0.01))) continue;
+      /*
+      bool Vertex_check = false;
+      int selected_track_j = -1;
+      for(int j=1; j<selectedTPs->size() && j<5; j++){
+         Vertex_check = Vertex((*selectedTPs)[0],(*selectedTPs)[j],x_dv,y_dv,z_dv);
+         if(Vertex_check){
+            selected_track_j = j;
+            break;
+         } 
+      }
+      if(!Vertex_check){*/
+         // selected_track_j = 1;
+      z_dv = tp_z->at((*selectedTPs)[0]->index);
+         Vertex((*selectedTPs)[0],(*selectedTPs)[1],x_dv,y_dv,z_dv); //(selectedTPs->size())>2?2:1
 
-      // if(dist(x_dv,y_dv,tp_x->at((*selectedTPs)[0]->index),tp_y->at((*selectedTPs)[0]->index))>0.5) continue;
+      // }
+      
+      
+      // h_delta_dist_xy->Fill(fabs(dist_Vertex(x_dv, y_dv,(*selectedTPs)[0]) - dist_Vertex(x_dv, y_dv,(*selectedTPs)[1])));
+      h_delta_dist_xy->Fill(dist_TPs((*selectedTPs)[0],(*selectedTPs)[1]));
+      h_error_delta_x->Fill(fabs((tp_x->at((*selectedTPs)[0]->index) - x_dv)));
 
+      float z_dv_1 = (*selectedTPs)[0]->z((*selectedTPs)[0]->phi_T(x_dv,y_dv));
+      float z_dv_2 = (*selectedTPs)[1]->z((*selectedTPs)[1]->phi_T(x_dv,y_dv));
+
+      h_delta_dist_z->Fill(fabs(z_dv_1-z_dv_2));
+
+      h_error_delta_z->Fill(fabs((tp_z->at((*selectedTPs)[0]->index) - z_dv_1)));
+
+      h_displaced_vertex_x->Fill( (tp_x->at((*selectedTPs)[0]->index)),x_dv);
+      h_displaced_vertex_y->Fill( (tp_y->at((*selectedTPs)[0]->index)),y_dv);
+      
+      if(VERBOSE[0])
+         std::cout<<"End of Displaced Vertex Finding"<<endl;
       // if(fabs(tp_x->at((*selectedTPs)[0]->index) - x_dv)>0.1)
-      //    cout<<Form("x_dv = %5.2f    |   y_dv = %5.2f    |  x[0] = %5.2f    |   y[0] = %5.2f    |   x[1] = %5.2f    |   y[1] = %5.2f    |   z[0] = -    |   z0[0] = -",x_dv,y_dv,tp_x->at((*selectedTPs)[0]->index),tp_y->at((*selectedTPs)[0]->index),tp_x->at((*selectedTPs)[1]->index),tp_y->at((*selectedTPs)[1]->index))<<endl;;//,(*selectedTPs)[0]->z((*selectedTPs)[0]->phi_T(tp_x->at((*selectedTPs)[0]->index))),(*selectedTPs)[0]->z0)<<endl;//<<" dxy = "<<tp_dxy->at(it)<<"\t \t dist = "<<TMath::Sqrt((*selectedTPs)[j]->x*(*selectedTPs)[j]->x + (*selectedTPs)[j]->y*(*selectedTPs)[j]->y)<<" \t eta = "<<tp_eta->at(it)<<" \t phi = "<<tp_phi->at(it)<<" \t pt = "<<tp_pt->at(it)<<endl;
-      // cout <<x_dv<<"\t"<<y_dv<<"   Adding to vectors \n";
+      if(VERBOSE[1]){
+         std::cout<<Form("x_dv = %5.2f  |  y_dv = %5.2f  |  x[0] = %5.2f  |  y[0] = %5.2f  |  x[1] = %5.2f  |  y[1] = %5.2f  |  z_dv = %5.2f  |  z[0] = %5.2f    |   z0[1] = %5.2f",x_dv,y_dv,tp_x->at((*selectedTPs)[0]->index),tp_y->at((*selectedTPs)[0]->index),tp_x->at((*selectedTPs)[1]->index),tp_y->at((*selectedTPs)[1]->index),z_dv,tp_z->at((*selectedTPs)[0]->index),tp_z->at((*selectedTPs)[1]->index))<<endl;;//,(*selectedTPs)[0]->z((*selectedTPs)[0]->phi_T(tp_x->at((*selectedTPs)[0]->index))),(*selectedTPs)[0]->z0)<<endl;//<<" dxy = "<<tp_dxy->at(it)<<"\t \t dist = "<<TMath::Sqrt((*selectedTPs)[j]->x*(*selectedTPs)[j]->x + (*selectedTPs)[j]->y*(*selectedTPs)[j]->y)<<" \t eta = "<<tp_eta->at(it)<<" \t phi = "<<tp_phi->at(it)<<" \t pt = "<<tp_pt->at(it)<<endl;
+      }
+      if(VERBOSE[2]){
+         for (int j = 0; j < 2; j++){
+            std::cout<<"Tracking Particle = "<<j<<endl;
+            std::cout<<Form("pt = %5.1f  |  d0 = %5.1f  |  z0 = %5.1f  |  pdgid = %5d  |  rho = %5.1f  |  x0 = %5.1f  |  y0 = %5.1f  |  atan = %5.1f  |  phi = %5.1f  |  Dphi = %5.1f",(*selectedTPs)[j]->pt,(*selectedTPs)[j]->d0,(*selectedTPs)[j]->z0,(*selectedTPs)[j]->pdgid,(*selectedTPs)[j]->rho,(*selectedTPs)[j]->x0,(*selectedTPs)[j]->y0,TMath::ATan2(-(*selectedTPs)[j]->x0,(*selectedTPs)[j]->y0),(*selectedTPs)[j]->phi,deltaPhi((*selectedTPs)[j]->phi,TMath::ATan2(-(*selectedTPs)[j]->x0,(*selectedTPs)[j]->y0)))<<endl;
+         }
+      }
       for (int j = 0; j < selectedTPs->size(); j++){
          (*selectedTPs)[j]->dist_calc(x_dv,y_dv,tp_x->at((*selectedTPs)[j]->index),tp_y->at((*selectedTPs)[j]->index));
-         // cout<<"Check 1\n";
-         // if((fabs((*selectedTPs)[j]->z0 - z_dv)) < 1.0){
-            selectedTPs_zmin->push_back(new Track_Parameters((*selectedTPs)[j]->pt, (*selectedTPs)[j]->d0, (*selectedTPs)[j]->z0, (*selectedTPs)[j]->eta, (*selectedTPs)[j]->phi, (*selectedTPs)[j]->charge, (*selectedTPs)[j]->index, (*selectedTPs)[j]->pdgid));
-            (*selectedTPs_zmin)[selectedTPs_zmin->size()-1]->dist_calc(x_dv,y_dv,tp_x->at((*selectedTPs_zmin)[selectedTPs_zmin->size()-1]->index),tp_y->at((*selectedTPs_zmin)[selectedTPs_zmin->size()-1]->index));
-            (*selectedTPs_zmin)[selectedTPs_zmin->size()-1]->dxy = dist_Vertex(x_dv, y_dv,(*selectedTPs_zmin)[selectedTPs_zmin->size()-1]);
-         // }
+         // (*selectedTPs)[selectedTPs->size()-1]->dxy = dist_Vertex(x_dv, y_dv,(*selectedTPs)[selectedTPs->size()-1]);
          if(dist_Vertex(x_dv, y_dv,(*selectedTPs)[j]) < 0.5){
-            // if((fabs(tp_z->at((*selectedTPs)[j]->index) - z_dv)) < 0.1){
+         // if((fabs((*selectedTPs)[j]->z0 - z_dv)) < 0.5){
             selectedTPs_dmin->push_back(new Track_Parameters((*selectedTPs)[j]->pt, (*selectedTPs)[j]->d0, (*selectedTPs)[j]->z0, (*selectedTPs)[j]->eta, (*selectedTPs)[j]->phi, (*selectedTPs)[j]->charge, (*selectedTPs)[j]->index, (*selectedTPs)[j]->pdgid));
             (*selectedTPs_dmin)[selectedTPs_dmin->size()-1]->dist_calc(x_dv,y_dv,tp_x->at((*selectedTPs_dmin)[selectedTPs_dmin->size()-1]->index),tp_y->at((*selectedTPs_dmin)[selectedTPs_dmin->size()-1]->index));
-            (*selectedTPs_dmin)[selectedTPs_dmin->size()-1]->dxy = dist_Vertex(x_dv, y_dv,(*selectedTPs_dmin)[selectedTPs_dmin->size()-1]);
-         }
+            // (*selectedTPs_dmin)[selectedTPs_dmin->size()-1]->dxy = dist_Vertex(x_dv, y_dv,(*selectedTPs_dmin)[selectedTPs_dmin->size()-1]);
          // }
+         }
 
       }
 
       // Counters 
-      // cout << i << "Start of Counters \n";
+      if(VERBOSE[0])
+         std::cout << "Start of Counters"<<endl;
 
       int pt_check[5] = {0,0,0,0,0};
       int d0_check[5] = {0,0,0,0,0};
@@ -650,8 +690,6 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
          }
       }
       }
-
-      // cout << i << "\t" << selectedTPs->size() << "\t" << (*selectedTPs)[0]->z0 << "\t" << (*selectedTPs)[0]->d0 << "\t" << (*selectedTPs)[0]->pt << "\t";
       
       if ((selectedTPs->size() == 2)){ nCount_2tp++;}
 
@@ -693,41 +731,19 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
          }
       }
       }
-      // cout << i << "End of Counters \n";
+
+      if(VERBOSE[0])
+         std::cout << "End of Counters"<<endl;
 
 
       sort(selectedTPs->begin(), selectedTPs->end(), ComparePtTrack);
-      sort(selectedTPs_zmin->begin(), selectedTPs_zmin->end(), ComparePtTrack);
       sort(selectedTPs_dmin->begin(), selectedTPs_dmin->end(), ComparePtTrack);
-      TP_minz0_nindex = -1;
       TP_mind0_nindex = -1;
-      TP_minz0_pindex = -1;
       TP_mind0_pindex = -1;
 
-      // cout << i << "\t" << selectedTPs->size() << "\t" << (*selectedTPs)[0]->z0 << "\t" << (*selectedTPs)[0]->d0 << "\t" << (*selectedTPs)[0]->pt << "\t";
       int check = 0;
-      std::vector<int> mu_zmin_p_index;
-      std::vector<int> mu_zmin_n_index;
       std::vector<int> mu_dmin_p_index;
       std::vector<int> mu_dmin_n_index;
-      for (int j = 0; j < selectedTPs_zmin->size(); j++){
-         if(abs((*selectedTPs_zmin)[j]->pdgid)==13){
-            if((*selectedTPs_zmin)[j]->charge==1) {
-               mu_zmin_p_index.push_back(selectedMu_zmin->size());
-            }
-            else
-            {
-               mu_zmin_n_index.push_back(selectedMu_zmin->size());
-            }
-            selectedMu->push_back(new Track_Parameters((*selectedTPs_zmin)[j]->pt, (*selectedTPs_zmin)[j]->d0, (*selectedTPs_zmin)[j]->z0, (*selectedTPs_zmin)[j]->eta, (*selectedTPs_zmin)[j]->phi, (*selectedTPs_zmin)[j]->charge, (*selectedTPs_zmin)[j]->index, (*selectedTPs_zmin)[j]->pdgid));
-            (*selectedMu)[selectedMu->size()-1]->dist_calc(x_dv,y_dv,tp_x->at((*selectedMu)[selectedMu->size()-1]->index),tp_y->at((*selectedMu)[selectedMu->size()-1]->index));
-            (*selectedMu)[selectedMu->size()-1]->dxy = dist_Vertex(x_dv, y_dv,(*selectedMu)[selectedMu->size()-1]);
-            // selectedMu_dmin->push_back(new Track_Parameters((*selectedTPs_zmin)[j]->pt, (*selectedTPs_zmin)[j]->d0, (*selectedTPs_zmin)[j]->z0, (*selectedTPs_zmin)[j]->eta, (*selectedTPs_zmin)[j]->phi, (*selectedTPs_zmin)[j]->charge, j, (*selectedTPs_zmin)[j]->pdgid));
-            selectedMu_zmin->push_back(new Track_Parameters((*selectedTPs_zmin)[j]->pt, (*selectedTPs_zmin)[j]->d0, (*selectedTPs_zmin)[j]->z0, (*selectedTPs_zmin)[j]->eta, (*selectedTPs_zmin)[j]->phi, (*selectedTPs_zmin)[j]->charge, (*selectedTPs_zmin)[j]->index, (*selectedTPs_zmin)[j]->pdgid));
-            (*selectedMu_zmin)[selectedMu_zmin->size()-1]->dist_calc(x_dv,y_dv,tp_x->at((*selectedMu_zmin)[selectedMu_zmin->size()-1]->index),tp_y->at((*selectedMu_zmin)[selectedMu_zmin->size()-1]->index));
-            (*selectedMu_zmin)[selectedMu_zmin->size()-1]->dxy = dist_Vertex(x_dv, y_dv,(*selectedMu_zmin)[selectedMu_zmin->size()-1]);
-         }
-      }
       for (int j = 0; j < selectedTPs_dmin->size(); j++){
          if(abs((*selectedTPs_dmin)[j]->pdgid)==13){
             if((*selectedTPs_dmin)[j]->charge==1) {
@@ -739,37 +755,21 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
             }
             selectedMu->push_back(new Track_Parameters((*selectedTPs_dmin)[j]->pt, (*selectedTPs_dmin)[j]->d0, (*selectedTPs_dmin)[j]->z0, (*selectedTPs_dmin)[j]->eta, (*selectedTPs_dmin)[j]->phi, (*selectedTPs_dmin)[j]->charge, (*selectedTPs_dmin)[j]->index, (*selectedTPs_dmin)[j]->pdgid));
             (*selectedMu)[selectedMu->size()-1]->dist_calc(x_dv,y_dv,tp_x->at((*selectedMu)[selectedMu->size()-1]->index),tp_y->at((*selectedMu)[selectedMu->size()-1]->index));
-            (*selectedMu)[selectedMu->size()-1]->dxy = dist_Vertex(x_dv, y_dv,(*selectedMu)[selectedMu->size()-1]);
+            // (*selectedMu)[selectedMu->size()-1]->dxy = dist_Vertex(x_dv, y_dv,(*selectedMu)[selectedMu->size()-1]);
             selectedMu_dmin->push_back(new Track_Parameters((*selectedTPs_dmin)[j]->pt, (*selectedTPs_dmin)[j]->d0, (*selectedTPs_dmin)[j]->z0, (*selectedTPs_dmin)[j]->eta, (*selectedTPs_dmin)[j]->phi, (*selectedTPs_dmin)[j]->charge, (*selectedTPs_dmin)[j]->index, (*selectedTPs_dmin)[j]->pdgid));
             (*selectedMu_dmin)[selectedMu_dmin->size()-1]->dist_calc(x_dv,y_dv,tp_x->at((*selectedMu_dmin)[selectedMu_dmin->size()-1]->index),tp_y->at((*selectedMu_dmin)[selectedMu_dmin->size()-1]->index));
-            (*selectedMu_dmin)[selectedMu_dmin->size()-1]->dxy = dist_Vertex(x_dv, y_dv,(*selectedMu_dmin)[selectedMu_dmin->size()-1]);
-            // selectedMu_zmin->push_back(new Track_Parameters((*selectedTPs_dmin)[j]->pt, (*selectedTPs_dmin)[j]->d0, (*selectedTPs_dmin)[j]->z0, (*selectedTPs_dmin)[j]->eta, (*selectedTPs_dmin)[j]->phi, (*selectedTPs_dmin)[j]->charge, j, (*selectedTPs_dmin)[j]->pdgid));
+            // (*selectedMu_dmin)[selectedMu_dmin->size()-1]->dxy = dist_Vertex(x_dv, y_dv,(*selectedMu_dmin)[selectedMu_dmin->size()-1]);
          }
       }
-      // cout<<endl<<i;
-      // cout << "\tMuon selection \t" << selectedMu->size()<<"\t"<<mu_n_index.size()<<"\t"<<mu_p_index.size()<<"\t";
-      if ((selectedMu_zmin->size()>=2) && (selectedMu_dmin->size()>=2)){
+
+      if (selectedMu_dmin->size()>=2){
          nCount_2mu++;
-      }
-      if ((selectedMu_zmin->size() >= 2) && (mu_zmin_n_index.size() != 0) && (mu_zmin_p_index.size() != 0)){
-         // nCount_2muOS++;
-         
-         float TP_minz0 = std::numeric_limits<float>::infinity();
-         for (int j = 0; j < mu_zmin_p_index.size(); j++)
-         {
-            for (int k = 0; k < mu_zmin_n_index.size(); k++)
-            {
-               if (fabs((*selectedMu_zmin)[mu_zmin_p_index[j]]->z0 - (*selectedMu_zmin)[mu_zmin_n_index[k]]->z0) < TP_minz0)
-               {
-                  TP_minz0 = fabs((*selectedMu_zmin)[mu_zmin_p_index[j]]->z0 - (*selectedMu_zmin)[mu_zmin_n_index[k]]->z0);
-                  TP_minz0_pindex = j;
-                  TP_minz0_nindex = k;
-               }
-            }
-         }
       }
       if ((selectedMu_dmin->size() >= 2) && (mu_dmin_n_index.size() != 0) && (mu_dmin_p_index.size() != 0)){
          nCount_2muOS++;
+         TP_mind0_nindex = 0;
+         TP_mind0_pindex = 0;
+         /*
          float TP_mind0 = std::numeric_limits<float>::infinity();
          for (int j = 0; j < mu_dmin_p_index.size(); j++)
          {
@@ -783,80 +783,18 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
                }
             }
          }
+         */
       }
 
-         // cout << TP_minz0_nindex << "\t" << TP_mind0_nindex<<"\t";
+      if(VERBOSE[0])
+         std::cout << "Selected the Muons"<<endl;
 
-         // if((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]]->charge==1)
-            // cout<<" \t Charge = "<<(*selectedMu_zmin)[mu_p_index[TP_minz0_nindex]]->charge <<" \t PDGID = "<<(*selectedMu_zmin)[mu_p_index[TP_minz0_nindex]]->pdgid;
-
-         // Swapping to get the Muon as the first element followed by the Anti-Muon
-         /*
-         std::iter_swap((*selectedMu_zmin)[mu_n_index[TP_minz0_nindex]], (*selectedMu_zmin)[0]);
-         std::iter_swap((*selectedMu_zmin)[mu_p_index[TP_minz0_pindex]], (*selectedMu_zmin)[1]);
-
-         std::iter_swap((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]], (*selectedMu_dmin)[0]);
-         std::iter_swap((*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]], (*selectedMu_dmin)[1]);
-   */
-      /*
-      if (selectedMu->size()>=2){
-      
-         float TP_minz0 = std::numeric_limits<float>::infinity();
-         float TP_mind0 = std::numeric_limits<float>::infinity();
-         sort(selectedMu_zmin->begin(), selectedMu_zmin->end(), CompareZ0Track);
-         sort(selectedMu_dmin->begin(), selectedMu_dmin->end(), CompareD0Track);
-         for (int j = 0; j < selectedMu_zmin->size() - 1; j++)
-         {
-            if (fabs((*selectedMu_zmin)[j + 1]->z0 - (*selectedMu_zmin)[j]->z0) < TP_minz0)
-            {
-               TP_minz0 = fabs((*selectedMu_zmin)[j + 1]->z0 - (*selectedMu_zmin)[j]->z0);
-               TP_minz0_nindex = j;
-            }
-            if (fabs((*selectedMu_dmin)[j + 1]->d0 - (*selectedMu_dmin)[j]->d0) < TP_mind0)
-            {
-               TP_mind0 = fabs((*selectedMu_dmin)[j + 1]->d0 - (*selectedMu_dmin)[j]->d0);
-               TP_mind0_nindex = j;
-            }
-         }
-
-         // cout << TP_minz0_index << "\t" << TP_mind0_index<<"\t";
-
-         if ((*selectedMu_zmin)[TP_minz0_nindex + 1]->pt > (*selectedMu_zmin)[TP_minz0_nindex]->pt)
-         {
-            std::iter_swap((*selectedMu_zmin)[TP_minz0_nindex + 1], (*selectedMu_zmin)[0]);
-            std::iter_swap((*selectedMu_zmin)[TP_minz0_nindex], (*selectedMu_zmin)[1]);
-         }
-         else
-         {
-            std::iter_swap((*selectedMu_zmin)[TP_minz0_nindex], (*selectedMu_zmin)[0]);
-            std::iter_swap((*selectedMu_zmin)[TP_minz0_nindex + 1], (*selectedMu_zmin)[1]);
-         }
-
-         if ((*selectedMu_dmin)[TP_mind0_nindex + 1]->pt > (*selectedMu_dmin)[TP_mind0_nindex]->pt)
-         {
-            std::iter_swap((*selectedMu_dmin)[TP_mind0_nindex + 1], (*selectedMu_dmin)[0]);
-            std::iter_swap((*selectedMu_dmin)[TP_mind0_nindex], (*selectedMu_dmin)[1]);
-         }
-         else
-         {
-            std::iter_swap((*selectedMu_dmin)[TP_mind0_nindex], (*selectedMu_dmin)[0]);
-            std::iter_swap((*selectedMu_dmin)[TP_mind0_nindex + 1], (*selectedMu_dmin)[1]);
-         }
-      }
-      // cout << "End of d0 and z0 sorting \t";
-
-*/
       if (!(selectedTPs->size() >= 2)) continue;
-      // cout<<selectedTPs_dmin->size()<<"\t"<<selectedTPs_dmin->size()<<endl;
       nAccept++;
          // ---------------------------------------------------------------------------------------------------------
          //Filling up Histograms
-
-         // h_d0_Mu_n_Mu_p->Fill((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->d0,(*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->d0);
          
          h_index=0;
-         h_displaced_vertex_x->Fill( (tp_x->at((*selectedTPs)[0]->index)),x_dv);
-         h_displaced_vertex_y->Fill( (tp_y->at((*selectedTPs)[0]->index)),y_dv);
          Hists[0][h_index++]->Fill(selectedTPs->size());
          Hists[0][h_index++]->Fill(selectedMu->size());
          for (int i = 0; i < selectedTPs->size(); i++)
@@ -892,29 +830,9 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
          Hists[0][h_index++]->Fill(fabs((*selectedTPs)[0]->z0 - (*selectedTPs)[1]->z0));
          Hists[0][h_index++]->Fill(fabs((*selectedTPs)[0]->d0 - (*selectedTPs)[1]->d0));
          Hists[0][h_index++]->Fill((deltaR((*selectedTPs)[0]->eta,(*selectedTPs)[0]->phi, (*selectedTPs)[1]->eta,(*selectedTPs)[1]->phi)));
+         Hists[0][h_index++]->Fill(fabs((*selectedTPs)[0]->dxy - (*selectedTPs)[1]->dxy));
 
-         if ((selectedTPs_dmin->size() >= 2) && (selectedTPs_zmin->size() >= 2)) {
-         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->pt);
-         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->eta);
-         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->phi);
-         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->z0);
-         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->d0);
-         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->charge);
-         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->pdgid);
-         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[0]->dxy);
-         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->pt);
-         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->eta);
-         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->phi);
-         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->z0);
-         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->d0);
-         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->charge);
-         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->pdgid);
-         Hists[0][h_index++]->Fill((*selectedTPs_zmin)[1]->dxy);
-         Hists[0][h_index++]->Fill(fabs((*selectedTPs_zmin)[0]->eta - (*selectedTPs_zmin)[1]->eta));
-         Hists[0][h_index++]->Fill(fabs(deltaPhi((*selectedTPs_zmin)[0]->phi, (*selectedTPs_zmin)[1]->phi)));
-         Hists[0][h_index++]->Fill(fabs((*selectedTPs_zmin)[0]->z0 - (*selectedTPs_zmin)[1]->z0));
-         Hists[0][h_index++]->Fill(fabs((*selectedTPs_zmin)[0]->d0 - (*selectedTPs_zmin)[1]->d0));
-         Hists[0][h_index++]->Fill((deltaR((*selectedTPs_zmin)[0]->eta, (*selectedTPs_zmin)[0]->phi, (*selectedTPs_zmin)[1]->eta, (*selectedTPs_zmin)[1]->phi)));
+         if (selectedTPs_dmin->size() >= 2) {
          Hists[0][h_index++]->Fill((*selectedTPs_dmin)[0]->pt);
          Hists[0][h_index++]->Fill((*selectedTPs_dmin)[0]->eta);
          Hists[0][h_index++]->Fill((*selectedTPs_dmin)[0]->phi);
@@ -936,31 +854,11 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
          Hists[0][h_index++]->Fill(fabs((*selectedTPs_dmin)[0]->z0 - (*selectedTPs_dmin)[1]->z0));
          Hists[0][h_index++]->Fill(fabs((*selectedTPs_dmin)[0]->d0 - (*selectedTPs_dmin)[1]->d0));
          Hists[0][h_index++]->Fill((deltaR((*selectedTPs_dmin)[0]->eta,(*selectedTPs_dmin)[0]->phi, (*selectedTPs_dmin)[1]->eta,(*selectedTPs_dmin)[1]->phi)));
+         Hists[0][h_index++]->Fill(fabs((*selectedTPs_dmin)[0]->dxy - (*selectedTPs_dmin)[1]->dxy));
          }
          // cout<<"TPs_dmin TPs_zmin \t"<<fabs((*selectedMu_dmin)[mu_n_index[TP_mind0_nindex]]->eta - (*selectedMu_dmin)[mu_p_index[TP_mind0_pindex]]->eta);
 
-         if ((selectedMu_zmin->size() >= 2) && (selectedMu_dmin->size() >= 2) && (mu_zmin_n_index.size() != 0) && (mu_zmin_p_index.size() != 0) && (mu_dmin_n_index.size() != 0) && (mu_dmin_p_index.size() != 0)){
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->pt);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->eta);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->phi);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->z0);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->d0);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->charge);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->pdgid);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->dxy);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->pt);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->eta);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->phi);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->z0);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->d0);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->charge);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->pdgid);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->dxy);
-         Hists[0][h_index++]->Fill(fabs((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->eta - (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->eta));
-         Hists[0][h_index++]->Fill(fabs(deltaPhi((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->phi, (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->phi)));
-         Hists[0][h_index++]->Fill(fabs((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->z0 - (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->z0));
-         Hists[0][h_index++]->Fill(fabs((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->d0 - (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->d0));
-         Hists[0][h_index++]->Fill((deltaR((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->eta, (*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->phi, (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->eta, (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->phi)));
+         if ((selectedMu_dmin->size() >= 2)&& (mu_dmin_n_index.size() != 0) && (mu_dmin_p_index.size() != 0)){
          Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->pt);
          Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->eta);
          Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->phi);
@@ -968,7 +866,7 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
          Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->d0);
          Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->charge);
          Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->pdgid);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_dmin_n_index[TP_mind0_nindex]]->dxy);
+         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->dxy);
          Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->pt);
          Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->eta);
          Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->phi);
@@ -976,22 +874,24 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
          Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->d0);
          Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->charge);
          Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->pdgid);
-         Hists[0][h_index++]->Fill((*selectedMu_zmin)[mu_dmin_p_index[TP_mind0_pindex]]->dxy);
+         Hists[0][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->dxy);
          Hists[0][h_index++]->Fill(fabs((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->eta - (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->eta));
          Hists[0][h_index++]->Fill(fabs(deltaPhi((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->phi, (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->phi)));
          Hists[0][h_index++]->Fill(fabs((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->z0 - (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->z0));
          Hists[0][h_index++]->Fill(fabs((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->d0 - (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->d0));
          Hists[0][h_index++]->Fill((deltaR((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->eta,(*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->phi, (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->eta,(*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->phi)));
+         Hists[0][h_index++]->Fill(fabs((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->dxy - (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->dxy));
          }
 
-         // cout<<"end of Histogram filling"<<"\n";
+         
+         if(VERBOSE[0])
+            std::cout << "First Region Histogram Filled"<<endl;
 
          // Atleast 1 pair of opposite sign muons
-         if ((selectedMu_zmin->size() >= 2) && (selectedMu_dmin->size() >= 2) && (mu_zmin_n_index.size() != 0) && (mu_zmin_p_index.size() != 0) && (mu_dmin_n_index.size() != 0) && (mu_dmin_p_index.size() != 0) && (selectedTPs_dmin->size() >= 2) && (selectedTPs_zmin->size() >= 2))
+         if ((selectedMu_dmin->size() >= 2) && (mu_dmin_n_index.size() != 0) && (mu_dmin_p_index.size() != 0) && (selectedTPs_dmin->size() >= 2))
          {
             // h_displaced_vertex->Fill(x_dv,y_dv);
             h_d0_Mu_n_Mu_p->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->d0,(*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->d0);
-            h_z0_Mu_n_Mu_p->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->z0,(*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->z0);
             h_index = 0;
             Hists[1][h_index++]->Fill(selectedTPs->size());
             Hists[1][h_index++]->Fill(selectedMu->size());
@@ -1028,29 +928,8 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
             Hists[1][h_index++]->Fill(fabs((*selectedTPs)[0]->z0 - (*selectedTPs)[1]->z0));
             Hists[1][h_index++]->Fill(fabs((*selectedTPs)[0]->d0 - (*selectedTPs)[1]->d0));
             Hists[1][h_index++]->Fill((deltaR((*selectedTPs)[0]->eta,(*selectedTPs)[0]->phi, (*selectedTPs)[1]->eta,(*selectedTPs)[1]->phi)));
+            Hists[1][h_index++]->Fill(fabs((*selectedTPs)[0]->dxy - (*selectedTPs)[1]->dxy));
 
-            
-            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->pt);
-            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->eta);
-            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->phi);
-            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->z0);
-            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->d0);
-            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->charge);
-            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->pdgid);
-            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[0]->dxy);
-            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->pt);
-            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->eta);
-            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->phi);
-            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->z0);
-            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->d0);
-            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->charge);
-            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->pdgid);
-            Hists[1][h_index++]->Fill((*selectedTPs_zmin)[1]->dxy);
-            Hists[1][h_index++]->Fill(fabs((*selectedTPs_zmin)[0]->eta - (*selectedTPs_zmin)[1]->eta));
-            Hists[1][h_index++]->Fill(fabs(deltaPhi((*selectedTPs_zmin)[0]->phi, (*selectedTPs_zmin)[1]->phi)));
-            Hists[1][h_index++]->Fill(fabs((*selectedTPs_zmin)[0]->z0 - (*selectedTPs_zmin)[1]->z0));
-            Hists[1][h_index++]->Fill(fabs((*selectedTPs_zmin)[0]->d0 - (*selectedTPs_zmin)[1]->d0));
-            Hists[1][h_index++]->Fill((deltaR((*selectedTPs_zmin)[0]->eta, (*selectedTPs_zmin)[0]->phi, (*selectedTPs_zmin)[1]->eta, (*selectedTPs_zmin)[1]->phi)));
             Hists[1][h_index++]->Fill((*selectedTPs_dmin)[0]->pt);
             Hists[1][h_index++]->Fill((*selectedTPs_dmin)[0]->eta);
             Hists[1][h_index++]->Fill((*selectedTPs_dmin)[0]->phi);
@@ -1072,32 +951,8 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
             Hists[1][h_index++]->Fill(fabs((*selectedTPs_dmin)[0]->z0 - (*selectedTPs_dmin)[1]->z0));
             Hists[1][h_index++]->Fill(fabs((*selectedTPs_dmin)[0]->d0 - (*selectedTPs_dmin)[1]->d0));
             Hists[1][h_index++]->Fill((deltaR((*selectedTPs_dmin)[0]->eta,(*selectedTPs_dmin)[0]->phi, (*selectedTPs_dmin)[1]->eta,(*selectedTPs_dmin)[1]->phi)));
-            
+            Hists[1][h_index++]->Fill(fabs((*selectedTPs_dmin)[0]->dxy - (*selectedTPs_dmin)[1]->dxy));
 
-            // if ((*selectedMu_zmin)[0]->charge == 1)
-               // cout <<" \t Charge = " << (*selectedMu_zmin)[0]->charge << " \t PDGID = " << (*selectedMu_zmin)[0]->pdgid;
-
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->pt);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->eta);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->phi);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->z0);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->d0);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->charge);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->pdgid);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->dxy);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->pt);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->eta);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->phi);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->z0);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->d0);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->charge);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->pdgid);
-            Hists[1][h_index++]->Fill((*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->dxy);
-            Hists[1][h_index++]->Fill(fabs((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->eta - (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->eta));
-            Hists[1][h_index++]->Fill(fabs(deltaPhi((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->phi, (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->phi)));
-            Hists[1][h_index++]->Fill(fabs((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->z0 - (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->z0));
-            Hists[1][h_index++]->Fill(fabs((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->d0 - (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->d0));
-            Hists[1][h_index++]->Fill((deltaR((*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->eta, (*selectedMu_zmin)[mu_zmin_n_index[TP_minz0_nindex]]->phi, (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->eta, (*selectedMu_zmin)[mu_zmin_p_index[TP_minz0_pindex]]->phi)));
             Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->pt);
             Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->eta);
             Hists[1][h_index++]->Fill((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->phi);
@@ -1119,6 +974,7 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
             Hists[1][h_index++]->Fill(fabs((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->z0 - (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->z0));
             Hists[1][h_index++]->Fill(fabs((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->d0 - (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->d0));
             Hists[1][h_index++]->Fill((deltaR((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->eta, (*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->phi, (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->eta, (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->phi)));
+            Hists[1][h_index++]->Fill(fabs((*selectedMu_dmin)[mu_dmin_n_index[TP_mind0_nindex]]->dxy - (*selectedMu_dmin)[mu_dmin_p_index[TP_mind0_pindex]]->dxy));
          }
 
       for (int l = 0; l < selectedTracks->size(); l++)
@@ -1133,10 +989,6 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
          // delete (*selectedTPs)[l];
          delete (*selectedMu)[l];
       }
-      for (int l = 0; l < selectedMu_zmin->size(); l++)
-      {
-         delete (*selectedMu_zmin)[l];
-      }
       for (int l = 0; l < selectedMu_dmin->size(); l++)
       {
          delete (*selectedMu_dmin)[l];
@@ -1148,10 +1000,6 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
       for (int l = 0; l < selectedTPs_dmin->size(); l++)
       {
          delete (*selectedTPs_dmin)[l];
-      }
-      for (int l = 0; l < selectedTPs_zmin->size(); l++)
-      {
-         delete (*selectedTPs_zmin)[l];
       }
 
       selectedTracks->clear();
@@ -1171,19 +1019,12 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
       selectedMu->clear();
       selectedMu->shrink_to_fit();
       delete selectedMu;
-      selectedMu_zmin->clear();
-      selectedMu_zmin->shrink_to_fit();
-      delete selectedMu_zmin;
       selectedMu_dmin->clear();
       selectedMu_dmin->shrink_to_fit();
       delete selectedMu_dmin;
       selectedTPs_dmin->clear();
       selectedTPs_dmin->shrink_to_fit();
       delete selectedTPs_dmin;
-      selectedTPs_zmin->clear();
-      selectedTPs_zmin->shrink_to_fit();
-      delete selectedTPs_zmin;
-
       // cout<<endl;
 
    } // end event loop
@@ -1196,6 +1037,24 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
    //some Histograms
 
    char ctxt[500];
+   if(type.Contains("cT0")){
+      sprintf(ctxt, "Dark Photon, PU=0, #tau=0mm");
+   }
+   else if(type.Contains("cT10000")){
+      sprintf(ctxt, "Dark Photon, PU=0, #tau=10000mm");
+   }
+   else if(type.Contains("cT5000")){
+      sprintf(ctxt, "Dark Photon, PU=0, #tau=5000mm");
+   }   
+   else if(type.Contains("cT100")){
+      sprintf(ctxt, "Dark Photon, PU=0, #tau=100mm");
+   }
+   else if(type.Contains("cT10")){
+      sprintf(ctxt, "Dark Photon, PU=0, #tau=5000mm");
+   }
+   else{
+      sprintf(ctxt, "");
+   }
    TCanvas c;
 
    TString DIR = type_dir + "AnalyzerTrkPlots/";
@@ -1214,6 +1073,7 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
       {
          Hists[k][l]->GetXaxis()->SetRange(1, Hists[k][l]->GetNbinsX() + 2);
          Hists[k][l]->Draw();
+         mySmallText(0.4, 0.82, 1, ctxt);
          Hists[k][l]->GetYaxis()->SetTitle("Events");/*
          if (vars[l].Contains("pt"))
          {
@@ -1241,7 +1101,7 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
          }*/
          Hists[k][l]->GetXaxis()->SetTitle(Hists[k][l]->GetName());
          Hists[k][l]->Write("", TObject::kOverwrite);
-         c.SaveAs(DIR + regions[k] + "/" + type + "_" + Hists[k][l]->GetName() + ".pdf");
+         c.SaveAs(DIR + regions[k] + "/" + type + "_" + Hists[k][l]->GetName() + ".jpeg");
       }
    }
    for (int k = 0; k < regions.size(); ++k)
@@ -1252,29 +1112,50 @@ Dim2 Hists(regions.size(), Dim1(vars.size()));
       }
    }
    // h_d0_Mu_n_Mu_p->GetXaxis()->SetRange(1, h_d0_Mu_n_Mu_p->GetNbinsX() + 2);
+   h_delta_dist_xy->GetXaxis()->SetRange(1, h_delta_dist_xy->GetNbinsX() + 2);
+   h_delta_dist_xy->Draw();
+   mySmallText(0.4, 0.82, 1, ctxt);
+   h_delta_dist_xy->Write("", TObject::kOverwrite);
+   c.SaveAs(DIR + "/"+ h_delta_dist_xy->GetName() + ".jpeg");
+   delete h_delta_dist_xy;
+   h_error_delta_x->GetXaxis()->SetRange(1, h_error_delta_x->GetNbinsX() + 2);
+   h_error_delta_x->Draw();
+   mySmallText(0.4, 0.82, 1, ctxt);
+   h_error_delta_x->Write("", TObject::kOverwrite);
+   c.SaveAs(DIR + "/"+ h_error_delta_x->GetName() + ".jpeg");
+   delete h_error_delta_x;
+   h_delta_dist_z->GetXaxis()->SetRange(1, h_delta_dist_z->GetNbinsX() + 2);
+   h_delta_dist_z->Draw();
+   mySmallText(0.4, 0.82, 1, ctxt);
+   h_delta_dist_z->Write("", TObject::kOverwrite);
+   c.SaveAs(DIR + "/"+ h_delta_dist_z->GetName() + ".jpeg");
+   delete h_delta_dist_z;
+   h_error_delta_z->GetXaxis()->SetRange(1, h_error_delta_z->GetNbinsX() + 2);
+   h_error_delta_z->Draw();
+   mySmallText(0.4, 0.82, 1, ctxt);
+   h_error_delta_z->Write("", TObject::kOverwrite);
+   c.SaveAs(DIR + "/"+ h_error_delta_z->GetName() + ".jpeg");
+   delete h_error_delta_z;
+   // gStyle->SetPadRightMargin(0.2);
    h_d0_Mu_n_Mu_p->Draw("colz");
    h_d0_Mu_n_Mu_p->GetYaxis()->SetTitle("d0 Mu+");
    h_d0_Mu_n_Mu_p->GetXaxis()->SetTitle("d0 Mu-");
    h_d0_Mu_n_Mu_p->Write("", TObject::kOverwrite);
-   c.SaveAs(DIR + "/"+ h_d0_Mu_n_Mu_p->GetName() + ".pdf");
-   h_z0_Mu_n_Mu_p->Draw("colz");
-   h_z0_Mu_n_Mu_p->GetYaxis()->SetTitle("z0 Mu+");
-   h_z0_Mu_n_Mu_p->GetXaxis()->SetTitle("z0 Mu-");
-   h_z0_Mu_n_Mu_p->Write("", TObject::kOverwrite);
-   c.SaveAs(DIR + "/"+ h_z0_Mu_n_Mu_p->GetName() + ".pdf");
+   c.SaveAs(DIR + "/"+ h_d0_Mu_n_Mu_p->GetName() + ".jpeg");
    delete h_d0_Mu_n_Mu_p;
-   delete h_z0_Mu_n_Mu_p;
+   h_displaced_vertex_x->GetYaxis()->SetRange(0, h_displaced_vertex_x->GetNbinsX() + 2);
    h_displaced_vertex_x->Draw("colz");
    h_displaced_vertex_x->GetYaxis()->SetTitle("Leading p_t - x");
    h_displaced_vertex_x->GetXaxis()->SetTitle("Displaced vertex - x");
    h_displaced_vertex_x->Write("", TObject::kOverwrite);
-   c.SaveAs(DIR + "/"+ h_displaced_vertex_x->GetName() + ".pdf");
+   c.SaveAs(DIR + "/"+ h_displaced_vertex_x->GetName() + ".jpeg");
    delete h_displaced_vertex_x;
+   h_displaced_vertex_y->GetYaxis()->SetRange(0, h_displaced_vertex_y->GetNbinsX() + 2);
    h_displaced_vertex_y->Draw("colz");
    h_displaced_vertex_y->GetYaxis()->SetTitle("Leading p_t - y");
    h_displaced_vertex_y->GetXaxis()->SetTitle("Displaced vertex - y");
    h_displaced_vertex_y->Write("", TObject::kOverwrite);
-   c.SaveAs(DIR + "/"+ h_displaced_vertex_y->GetName() + ".pdf");
+   c.SaveAs(DIR + "/"+ h_displaced_vertex_y->GetName() + ".jpeg");
    delete h_displaced_vertex_y;
    fout->Close();
 
@@ -1382,7 +1263,7 @@ void SetPlotStyle()
    // set the paper & margin sizes
    gStyle->SetPaperSize(20, 26);
    gStyle->SetPadTopMargin(0.05);
-   gStyle->SetPadRightMargin(0.05);
+   gStyle->SetPadRightMargin(0.15);
    gStyle->SetPadBottomMargin(0.16);
    gStyle->SetPadLeftMargin(0.16);
 

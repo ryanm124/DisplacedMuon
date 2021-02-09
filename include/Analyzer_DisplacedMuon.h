@@ -50,10 +50,22 @@ public:
       float theta = 2 * TMath::ATan(TMath::Exp(-eta));
       return (z0 + rho*phi_T/TMath::Tan(theta));
    }
+   
+   float deltaPhi_T(Double_t phi1, Double_t phi2)
+   {
+      Double_t dPhi = phi1 - phi2;
+      if (dPhi >= TMath::Pi())
+         dPhi -= 2. * TMath::Pi();
+      if (dPhi <= -TMath::Pi())
+         dPhi += 2. * TMath::Pi();
+      return dPhi;
+   }
    float phi_T(float x, float y){
+      // if(fabs(x)<0.01 && fabs(y)<0.01) return (0); //! Understand why I get Pi instead of 0 for this case!
       float num = x - (-d0 + charge * rho) * TMath::Sin(phi);
       float den = y + (-d0 + charge * rho) * TMath::Cos(phi);
-      return ((phi-TMath::ATan2(-num,den))/charge);
+      // std::cout<<Form("x = %5.1f  |  y = %5.1f  |  num = %5.1f  |  den = %5.1f  |  atan = %5.1f  |  phi = %5.1f  |  dphi = %5.1f  |  phi-atan = %5.1f",x,y,num,den,TMath::ATan2(num,-den)/charge,phi/charge,deltaPhi_T(phi/charge,TMath::ATan2(num,-den)/charge),(phi - TMath::ATan2(num,-den))/charge)<<std::endl;
+      return (deltaPhi_T(phi/charge,TMath::ATan2(num,-den)/charge));   
 
 /*
       if(fabs(1-num/den)>1.1){

@@ -65,7 +65,7 @@ public:
       float num = x - (-d0 + charge * rho) * TMath::Sin(phi);
       float den = y + (-d0 + charge * rho) * TMath::Cos(phi);
       // std::cout<<Form("x = %5.1f  |  y = %5.1f  |  num = %5.1f  |  den = %5.1f  |  atan = %5.1f  |  phi = %5.1f  |  dphi = %5.1f  |  phi-atan = %5.1f",x,y,num,den,TMath::ATan2(num,-den)/charge,phi/charge,deltaPhi_T(phi/charge,TMath::ATan2(num,-den)/charge),(phi - TMath::ATan2(num,-den))/charge)<<std::endl;
-      return (deltaPhi_T(phi/charge,TMath::ATan2(num,-den)/charge));   
+      return ((phi-TMath::ATan2(num,-den))/charge);   
 
 /*
       if(fabs(1-num/den)>1.1){
@@ -91,6 +91,19 @@ public:
       }
       */
    }
+   float z(float x, float y){
+      float phiT = phi_T(x,y); 
+      float temp_z = z(phiT);
+      for(int n=1;abs(n)<2;n>0?n++:n--){
+         phiT = (n*TMath::Pi()/charge) + phi_T(x,y); 
+         if(fabs(z(phiT))>fabs(temp_z) && n==1){
+            n*=-1;
+            n++;
+         }
+         else if(fabs(z(phiT))<50) return (z(phiT));
+      }
+      return (temp_z);
+   }
    Track_Parameters(float pt_in, float d0_in, float z0_in, float eta_in, float phi_in, float charge_in, int index_in, int pdgid_in)
    {
       pt = pt_in;
@@ -109,7 +122,7 @@ public:
       }
       index = index_in;
       pdgid = pdgid_in;
-      rho = pt / (0.3 * 3.8);
+      rho = 100*pt / (0.3 * 3.8);
       x0 =  (-d0 + charge * rho)*TMath::Sin(phi);
       y0 = -(-d0 + charge * rho)*TMath::Cos(phi);
    }

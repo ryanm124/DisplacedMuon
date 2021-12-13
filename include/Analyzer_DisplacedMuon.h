@@ -41,10 +41,10 @@ public:
       dxy = TMath::Sqrt((x_dv-x)*(x_dv-x) + (y_dv-y)*(y_dv-y));
    }
    float x(float phi_T=0){
-      return (-charge * rho * TMath::Sin(phi - charge*phi_T) + (-d0 + charge * rho) * TMath::Sin(phi));
+      return (-charge * rho * TMath::Sin(phi - charge*phi_T) + (d0 + charge * rho) * TMath::Sin(phi));
    }
    float y(float phi_T=0){
-      return ( charge * rho * TMath::Cos(phi - charge*phi_T) - (-d0 + charge * rho) * TMath::Cos(phi));
+      return ( charge * rho * TMath::Cos(phi - charge*phi_T) - (d0 + charge * rho) * TMath::Cos(phi));
    }
    float z(float phi_T=0){
       float theta = 2 * TMath::ATan(TMath::Exp(-eta));
@@ -62,8 +62,8 @@ public:
    }
    float phi_T(float x, float y){
       // if(fabs(x)<0.01 && fabs(y)<0.01) return (0); //! Understand why I get Pi instead of 0 for this case!
-      float num = x - (-d0 + charge * rho) * TMath::Sin(phi);
-      float den = y + (-d0 + charge * rho) * TMath::Cos(phi);
+      float num = x - (d0 + charge * rho) * TMath::Sin(phi);
+      float den = y + (d0 + charge * rho) * TMath::Cos(phi);
       // std::cout<<Form("x = %5.1f  |  y = %5.1f  |  num = %5.1f  |  den = %5.1f  |  atan = %5.1f  |  phi = %5.1f  |  dphi = %5.1f  |  phi-atan = %5.1f",x,y,num,den,TMath::ATan2(num,-den)/charge,phi/charge,deltaPhi_T(phi/charge,TMath::ATan2(num,-den)/charge),(phi - TMath::ATan2(num,-den))/charge)<<std::endl;
       return ((phi-TMath::ATan2(num,-den))/charge);   
 
@@ -91,17 +91,49 @@ public:
       }
       */
    }
-   float z(float x, float y){
-      float phiT = phi_T(x,y); 
-      float temp_z = z(phiT);
+   float z(float x, float y, float compare_z=9999.0){
+      float orig_phiT = phi_T(x,y); 
+      float temp_z = z(orig_phiT);// (z_val==9999.0)?z(phiT):z_val;
+      if(fabs(temp_z)<50){
+         if(compare_z==9999.0)    return (temp_z);
+         else if(fabs(temp_z-compare_z)<1.0) return (temp_z);
+      }
+      std::vector<float> z_val;
+      z_val.push_back(temp_z);
+      float phiT = (TMath::Pi()/charge) + orig_phiT; 
+      z_val.push_back(z(phiT));
+      if(fabs(z_val.back())<50 ){
+         if(compare_z==9999.0)    return (z_val.back());
+         else if(fabs(z_val.back()-compare_z)<1.0) return (z_val.back());
+      }
+      phiT = (-TMath::Pi()/charge) + orig_phiT; 
+      z_val.push_back(z(phiT));
+      if(fabs(z_val.back())<50){
+         if(compare_z==9999.0)    return (z_val.back());
+         else if(fabs(z_val.back()-compare_z)<1.0) return (z_val.back());
+      }
+      /*
       for(int n=1;abs(n)<2;n>0?n++:n--){
          phiT = (n*TMath::Pi()/charge) + phi_T(x,y); 
-         if(fabs(z(phiT))>fabs(temp_z) && n==1){
+         z_val.push_back(z(phiT));
+         if(fabs(z_val.back())>fabs(temp_z) && n==1){
             n*=-1;
             n++;
          }
-         else if(fabs(z(phiT))<50) return (z(phiT));
+         else if(fabs(z_val.back())<50){
+            if(compare_z==9999.0){
+               return (z_val.back());
+            }
+            else{
+               for(int j=0;j<z_val.size();j++){
+                  if(fabs(z_val[j]-compare_z)<1.0){
+                     return (z_val[j]);
+                  }
+               }
+            }
+         }
       }
+      */
       return (temp_z);
    }
    Track_Parameters(float pt_in, float d0_in, float z0_in, float eta_in, float phi_in, float charge_in, int index_in, int pdgid_in)
@@ -123,8 +155,8 @@ public:
       index = index_in;
       pdgid = pdgid_in;
       rho = 100*pt / (0.3 * 3.8);
-      x0 =  (-d0 + charge * rho)*TMath::Sin(phi);
-      y0 = -(-d0 + charge * rho)*TMath::Cos(phi);
+      x0 =  (d0 + charge * rho)*TMath::Sin(phi);
+      y0 = -(d0 + charge * rho)*TMath::Cos(phi);
    }
    void Propagate_Transverse(){
       /*

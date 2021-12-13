@@ -27,14 +27,14 @@ void mySmallText(Double_t x,Double_t y,Color_t color,char *text);
 
 // ----------------------------------------------------------------------------------------------------------------
 // Main script
-void overlay(int numfiles = 3) {
+void overlay(int numfiles = 2) {
   TString what;
 
   TString makedir = "mkdir -p Overlay/";
   const char *mkDIR = makedir.Data();
   gSystem->Exec(mkDIR);
 
-  std::vector<TString> regions{"tpgeq2", "tpgeq2osMu"};
+  std::vector<TString> regions{"reg"};
   for (int k = 0; k < regions.size(); ++k)
   {
     makedir = "mkdir -p Overlay/"+ regions[k] + "/";
@@ -55,7 +55,7 @@ void overlay(int numfiles = 3) {
       case 4:tree4 = new TFile("cT5000/output_events_Dark_Photon_cT5000.root");
       case 3:tree3 = new TFile("cT100/output_events_Dark_Photon_cT100.root");
       case 2:tree2 = new TFile("cT10/output_events_Dark_Photon_cT10.root");
-      case 1:tree1 = new TFile("cT0/output_events_Dark_Photon_cT0.root");
+      case 1:tree1 = new TFile("cT10_PU200/output_events_Dark_Photon_cT10_PU200.root");
     }
     /*
     TFile *tree1 = new TFile("cT0/output_events_Dark_Photon_cT0.root");
@@ -105,6 +105,7 @@ void overlay(int numfiles = 3) {
       h5->GetXaxis()->SetRange(1, h5->GetNbinsX() + 2);*/
       }
 
+      if(!what.Contains("eff")){
       switch(numfiles){
         default:
         case 5:if (h5->GetEntries()) h5->Scale(1.0 / h5->GetEntries());
@@ -112,6 +113,7 @@ void overlay(int numfiles = 3) {
         case 3:if (h3->GetEntries()) h3->Scale(1.0 / h3->GetEntries());
         case 2:if (h2->GetEntries()) h2->Scale(1.0 / h2->GetEntries());
         case 1:if (h1->GetEntries()) h1->Scale(1.0 / h1->GetEntries());
+      }
       }
       /*
       if (h1->GetEntries())
@@ -125,7 +127,7 @@ void overlay(int numfiles = 3) {
       if (h5->GetEntries())
         h5->Scale(1.0 / h5->GetEntries());
 */
-      
+      /*
       switch(numfiles){
         default:
         case 5:h5->Rebin();
@@ -133,7 +135,8 @@ void overlay(int numfiles = 3) {
         case 3:h3->Rebin();
         case 2:h2->Rebin();
         case 1:h1->Rebin();
-      }
+      }*/
+      
       switch(numfiles){
         default:
         case 5:h5->GetXaxis()->SetRange(0, h5->GetNbinsX() + 2);
@@ -204,9 +207,10 @@ void overlay(int numfiles = 3) {
       //hs.Add(h5);*/
       hs.Draw("nostack");
       // hs.GetXaxis()->SetLimits(, 3);
-      hs.GetXaxis()->SetRange(1, h1->GetNbinsX() + 2);
+      hs.GetXaxis()->SetRange(0, h1->GetNbinsX() + 2);
 
       hs.GetYaxis()->SetTitle("Normalized Events");
+      
       /*  if (what.Contains("pt"))
   {
     hs.GetXaxis()->SetTitle("Pt");
@@ -232,14 +236,39 @@ void overlay(int numfiles = 3) {
     hs.GetXaxis()->SetTitle("rInv");
   }
   else{*/
-      // hs.GetXaxis()->SetTitle(what);
+      hs.GetXaxis()->SetTitle(what);
       //}
       if(what.Contains("d0"))
         hs.GetXaxis()->SetTitle("d_{0} (cm)");
+      
+      if (what.Contains("eff")){
+        hs.GetYaxis()->SetTitle("Efficiency");
+        if (what.Contains("eta")){
+          hs.GetXaxis()->SetTitle("Pseudorapidity #eta");
+        }
+        else if (what.Contains("pt")){
+          hs.GetXaxis()->SetTitle("Transverse Momentum p_{T} (GeV)");
+        }
+        else if (what.Contains("dxy")){
+          hs.GetXaxis()->SetTitle("Transverse displacement, dxy (cm)");
+        }
+      }
+      else if (what.Contains("res")){
+        // hs.GetYaxis()->SetTitle("Events");
+        if (what.Contains("x")){
+          hs.GetXaxis()->SetTitle("x resolution (cm)");
+        }
+        else if (what.Contains("z")){
+          hs.GetXaxis()->SetTitle("z resolution (cm)");
+        }
+        else if (what.Contains("y")){
+          hs.GetXaxis()->SetTitle("y resolution (cm)");
+        }
+      }
 
       TLegend *l;
       char sample[500];
-      sprintf(sample, "Dark Photon, PU=0");
+      sprintf(sample, "Dark Photon");
 
       if (what.Contains("eff"))
       {
@@ -252,7 +281,7 @@ void overlay(int numfiles = 3) {
         mySmallText(0.4, 0.82, 1, sample);
       }
       //l = new TLegend(0.15, 0.22, "", "brNDC");
-      l = new TLegend(0.55, 0.40, 0.85, 0.60,"","brNDC");
+      l = new TLegend(0.45, 0.40, 0.65, 0.55,"","brNDC");
       l->SetFillColor(0);
       l->SetLineColor(0);
       l->SetTextSize(0.05);
@@ -260,9 +289,9 @@ void overlay(int numfiles = 3) {
         default:
         case 5:l->AddEntry(h5, "#tau 10000", "lep");
         case 4:l->AddEntry(h4, "#tau 5000", "lep");
-        case 3:l->AddEntry(h3, "#tau 100", "lep");
-        case 2:l->AddEntry(h2, "#tau 10", "lep");
-        case 1:l->AddEntry(h1, "#tau 0", "lep");
+        case 3:l->AddEntry(h1, "#tau = 100mm, PU = 0", "lep");
+        case 2:l->AddEntry(h2, "#tau = 10mm, PU = 0", "lep");
+        case 1:l->AddEntry(h1, "#tau = 10mm, PU = 200", "lep");
       }
       // l->AddEntry(h1, "cT0", "lep");
       // l->AddEntry(h2, "cT10", "lep");

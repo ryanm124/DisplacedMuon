@@ -35,10 +35,12 @@ public:
    float rho;
    int index;
    int pdgid = -99999;
+   float tp_pt;
    float x0;
    float y0;
    float dist_calc(float x_dv, float y_dv, float x, float y){
       dxy = TMath::Sqrt((x_dv-x)*(x_dv-x) + (y_dv-y)*(y_dv-y));
+      return dxy;
    }
    float x(float phi_T=0){
       return (-charge * rho * TMath::Sin(phi - charge*phi_T) + (d0 + charge * rho) * TMath::Sin(phi));
@@ -91,6 +93,7 @@ public:
       }
       */
    }
+#if 0
    float z(float x, float y, float compare_z=9999.0){
       float orig_phiT = phi_T(x,y); 
       float temp_z = z(orig_phiT);// (z_val==9999.0)?z(phiT):z_val;
@@ -136,13 +139,22 @@ public:
       */
       return (temp_z);
    }
-   Track_Parameters(float pt_in, float d0_in, float z0_in, float eta_in, float phi_in, float charge_in, int index_in, int pdgid_in)
+#endif
+   
+   float z(float x, float y){
+     float t = std::sinh(eta);
+     float r = TMath::Sqrt(pow(x,2)+pow(y,2));
+     return (z0+t*r); // can do higher order terms if necessary from displaced math
+   }
+
+   Track_Parameters(float pt_in, float d0_in, float z0_in, float eta_in, float phi_in, float charge_in, int index_in, int pdgid_in, float tp_pt_in = 0)
    {
       pt = pt_in;
       d0 = d0_in;
       z0 = z0_in;
       eta = eta_in;
       phi = phi_in;
+      
       if(charge_in > 0){
          charge = 1;
       }
@@ -154,6 +166,7 @@ public:
       }
       index = index_in;
       pdgid = pdgid_in;
+      tp_pt = tp_pt_in;
       rho = 100*pt / (0.3 * 3.8);
       x0 =  (d0 + charge * rho)*TMath::Sin(phi);
       y0 = -(d0 + charge * rho)*TMath::Cos(phi);
@@ -179,6 +192,28 @@ public:
    }
    ~Track_Parameters(){};
 };
+
+class Vertex_Parameters
+{
+ public:
+  Double_t x_dv;
+  Double_t y_dv;
+  Double_t z_dv;
+  Track_Parameters a;
+  Track_Parameters b;
+  bool matched = false;
+
+ Vertex_Parameters(Double_t x_dv_in, Double_t y_dv_in, Double_t z_dv_in, Track_Parameters a_in, Track_Parameters b_in):
+  a(a_in),
+  b(b_in)
+{
+    x_dv = x_dv_in;
+    y_dv = y_dv_in;
+    z_dv = z_dv_in;
+}
+  ~Vertex_Parameters(){};
+};
+
 /*
 void Track_Parameters::Propagate_Transverse(){
    float rho = pt / (0.3 * 3.8);
@@ -394,6 +429,7 @@ public :
    virtual Int_t    GetEntry(Long64_t entry);
    virtual Long64_t LoadTree(Long64_t entry);
    virtual void     Init(TTree *tree);
+   bool operator() (Track_Parameters a, Track_Parameters b){ return tp_x->at(a.index) > tp_x->at(b.index); }
    virtual void     Loop(TString, TString, float, float, int);
    virtual Bool_t   Notify();
    virtual void     Show(Long64_t entry = -1);

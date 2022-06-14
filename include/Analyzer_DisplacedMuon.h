@@ -202,6 +202,7 @@ class Vertex_Parameters
   Track_Parameters a;
   Track_Parameters b;
   bool matched = false;
+  int errorCode = 0;
 
  Vertex_Parameters(Double_t x_dv_in, Double_t y_dv_in, Double_t z_dv_in, Track_Parameters a_in, Track_Parameters b_in):
   a(a_in),

@@ -13,7 +13,7 @@ int main()
     // TString file_dir = "~/prj/Thesis/Results_L1/2020_11_19_Neutrino_Files/";
 
     TString file_dir_nu = "/afs/cern.ch/work/r/rmccarth/private/DarkPhotonT10/";
-
+    //TString file_dir_nu = "/afs/cern.ch/work/r/rmccarth/private/NeutrinoGun_PU200/";
     
 /*
     TChain *ch1 = new TChain("L1TrackNtuple/eventTree");
@@ -59,7 +59,9 @@ int main()
 */
     TChain *ch6 = new TChain("L1TrackNtuple/eventTree");
     ch6->Add(file_dir_nu + "events_Dark_Photon_cT10.root");
+    //ch6->Add(file_dir_nu + "events_NeutrinoGun_PU200_1000files.root");
     Analyzer_DisplacedMuon t6(ch6);
-    t6.Loop("events_DarkPhoton_cT10", type_dir + "DarkPhoton_cT10_CMSPresentation/", 10.0, 0.0004196, 0);
+    t6.Loop("events_DarkPhoton_cT10", type_dir + "DarkPhoton_cT10_GTT_Presentation/", 10.0, 0.0004196, 0);
+    //t6.Loop("events_NeutrinoGun", type_dir + "NeutrinoGunHarshCuts_no_R_T_d0Cut_looseCos/", 10.0, 0.0004196, 0);
     return 0;
 }
